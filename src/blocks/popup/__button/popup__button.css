@@ -9,9 +9,9 @@
   justify-content: center;
   background: #000;
   border-radius: 2px;
-  transition: visibility 0s, background-color 0.3s, border-color 0.3s, color 0.3s;
-  margin-top: 20px;
-  border: 1px solid transparent;
+  border: none;
+  transition: visibility 0s, background 0.3s;
+  margin-top: 48px;
 }
 
 .popup__button:hover {
@@ -24,4 +24,13 @@
     font-size: 14px;
     line-height: 17px;
   }
+}
+
+.popup__button_disabled {
+  color: #000000;
+  background: transparent;
+  border: 1px solid #000000;
+  cursor: default;
+  opacity: 0.2;
+  pointer-events: none;
 }
