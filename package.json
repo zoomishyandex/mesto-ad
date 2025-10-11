@@ -1,7 +1,6 @@
 {
-  "name": "mesto-project-ff",
+  "name": "mesto-ad",
   "version": "1.0.0",
-  "description": "[Макет](https://www.figma.com/file/bjyvbKKJN2naO0ucURl2Z0/JavaScript.-Sprint-5?type=design&mode=design)",
   "main": "index.js",
   "scripts": {
     "build": "webpack --mode production",
@@ -9,8 +8,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "author": "ilka.xd",
-  "license": "ISC",
+  "author": "Zoomish",
   "devDependencies": {
     "@babel/core": "^7.23.3",
     "@babel/preset-env": "^7.23.3",
