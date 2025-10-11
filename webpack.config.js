@@ -4,29 +4,33 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
-    entry: {main: './src/index.js'},
+    entry: { main: './src/index.js' },
+
     output: {
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'public'), // Changed to 'public'
         filename: 'main.js',
-        publicPath: ''
+        publicPath: '', // You can change this if needed
     },
+
     mode: 'development',
+
     devServer: {
-        static: path.resolve(__dirname, './dist'),
+        static: path.resolve(__dirname, 'public'), // Updated this as well
         compress: true,
         port: 8080,
-        open: true
+        open: true,
     },
+
     module: {
         rules: [
             {
                 test: /\.js$/,
                 use: 'babel-loader',
-                exclude: '/node_modules/'
+                exclude: '/node_modules/',
             },
             {
-                test: /\.(png|svg|jpg|gif|woff(2)?|eot|ttf|otf)$/,
-                type: 'asset/resource'
+                test: /\.(png|svg|jpg|gif|woff(2)?|eot|ttf|otf)$/, 
+                type: 'asset/resource',
             },
             {
                 test: /\.css$/,
@@ -34,18 +38,19 @@ module.exports = {
                     MiniCssExtractPlugin.loader,
                     {
                         loader: 'css-loader',
-                        options: { importLoaders: 1 }
+                        options: { importLoaders: 1 },
                     },
-                    'postcss-loader'
-                ]
-            }
-        ]
+                    'postcss-loader',
+                ],
+            },
+        ],
     },
+
     plugins: [
         new HtmlWebpackPlugin({
-            template: './public/index.html'
+            template: './src/index.html',
         }),
         new CleanWebpackPlugin(),
-        new MiniCssExtractPlugin()
-    ]
+        new MiniCssExtractPlugin(),
+    ],
 };
