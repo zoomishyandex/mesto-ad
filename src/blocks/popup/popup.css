@@ -12,7 +12,6 @@
 @import url('./__image/popup__image.css');
 @import url('./__label/popup__label.css');
 @import url('./__error/popup__error.css');
-@import url('./__text/popup__text.css');
 @import url('./__error/_visible/popup__error_visible.css');
 @import url('./__info/popup__info.css');
 @import url('./__info-item/popup__info-item.css');
@@ -34,7 +33,6 @@
   left: 0;
   bottom: 0;
   right: 0;
-  /*Стили для плавного появления модалки*/
   visibility: hidden;
   opacity: 0;
   pointer-events: none;

@@ -61,6 +61,7 @@ const infoDefinitionTemplate = document.querySelector("#popup-info-definition-te
 const infoUserTemplate = document.querySelector("#popup-info-user-preview-template").content;
 const allPopups = document.querySelectorAll(".popup");
 let currentUserId = "";
+const handleRequestError = () => {};
 
 const handlePreviewPicture = ({ name, link }) => {
   imageElement.src = link;
@@ -133,9 +134,7 @@ const handleInfoClick = (cardId) => {
 
       openModalWindow(infoModalWindow);
     })
-    .catch((err) => {
-      console.log(err);
-    });
+    .catch(handleRequestError);
 };
 
 const handleLikeClick = ({ cardId, isLiked, likeButton, likeCountElement }) => {
@@ -143,9 +142,7 @@ const handleLikeClick = ({ cardId, isLiked, likeButton, likeCountElement }) => {
     .then((updatedCard) => {
       updateCardLikeState(updatedCard, likeButton, likeCountElement);
     })
-    .catch((err) => {
-      console.log(err);
-    });
+    .catch(handleRequestError);
 };
 
 const handleDeleteCard = ({ cardId, cardElement }) => {
@@ -153,9 +150,7 @@ const handleDeleteCard = ({ cardId, cardElement }) => {
     .then(() => {
       removeCard(cardElement);
     })
-    .catch((err) => {
-      console.log(err);
-    });
+    .catch(handleRequestError);
 };
 
 const renderCard = (cardData, isPrepend = false) => {
@@ -186,15 +181,13 @@ const handleProfileFormSubmit = (evt) => {
       setUserData(userData);
       closeModalWindow(profileFormModalWindow);
     })
-    .catch((err) => {
-      console.log(err);
-    })
+    .catch(handleRequestError)
     .finally(() => {
       renderSubmitButton(submitButton, false);
     });
 };
 
-const handleAvatarFromSubmit = (evt) => {
+const handleAvatarFormSubmit = (evt) => {
   evt.preventDefault();
   const submitButton = evt.submitter;
   renderSubmitButton(submitButton, true, "Сохранение...");
@@ -205,9 +198,7 @@ const handleAvatarFromSubmit = (evt) => {
       setUserData(userData);
       closeModalWindow(avatarFormModalWindow);
     })
-    .catch((err) => {
-      console.log(err);
-    })
+    .catch(handleRequestError)
     .finally(() => {
       renderSubmitButton(submitButton, false);
     });
@@ -226,9 +217,7 @@ const handleCardFormSubmit = (evt) => {
       closeModalWindow(cardFormModalWindow);
       cardForm.reset();
     })
-    .catch((err) => {
-      console.log(err);
-    })
+    .catch(handleRequestError)
     .finally(() => {
       renderSubmitButton(submitButton, false);
     });
@@ -236,7 +225,7 @@ const handleCardFormSubmit = (evt) => {
 
 profileForm.addEventListener("submit", handleProfileFormSubmit);
 cardForm.addEventListener("submit", handleCardFormSubmit);
-avatarForm.addEventListener("submit", handleAvatarFromSubmit);
+avatarForm.addEventListener("submit", handleAvatarFormSubmit);
 
 openProfileFormButton.addEventListener("click", () => {
   profileTitleInput.value = profileTitle.textContent;
@@ -270,6 +259,4 @@ Promise.all([getCardList(), getUserInfo()])
       renderCard(card);
     });
   })
-  .catch((err) => {
-    console.log(err);
-  });
+  .catch(handleRequestError);
