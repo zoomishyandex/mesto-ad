@@ -1,5 +1,8 @@
 .popup__list-item {
-    max-width: 105px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;

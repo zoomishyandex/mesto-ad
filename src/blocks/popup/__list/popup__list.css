@@ -1,14 +1,22 @@
 .popup__list {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     list-style: none;
-    gap: 12px;
-    margin: 20px 0 0;
+    gap: 8px;
+    margin: 0;
     font-size: 14px;
-    line-height: 17px;
+    line-height: 1.35;
     padding-left: 0;
-    max-height: 300px;
+}
+
+.popup__list_type_definitions {
+    display: grid;
+    gap: 10px;
+}
+
+.popup__list_type_users {
+    max-height: 180px;
     overflow: auto;
 }
 
@@ -28,7 +36,6 @@
     .popup__list {
         font-size: 10px;
         line-height: 12px;
-        max-height: 180px;
     }
 }
 

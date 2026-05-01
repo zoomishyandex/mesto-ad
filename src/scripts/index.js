@@ -117,10 +117,10 @@ const handleInfoClick = (cardId) => {
       }
 
       infoDefinitionList.replaceChildren(
-        createInfoString("Название:", cardData.name),
-        createInfoString("Автор:", cardData.owner.name),
+        createInfoString("Описание:", cardData.name),
         createInfoString("Дата создания:", formatDate(new Date(cardData.createdAt))),
-        createInfoString("Лайков:", String(cardData.likes.length))
+        createInfoString("Владелец:", cardData.owner.name),
+        createInfoString("Количество лайков:", String(cardData.likes.length))
       );
 
       if (cardData.likes.length === 0) {
