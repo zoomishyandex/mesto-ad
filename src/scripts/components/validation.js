@@ -13,78 +13,15 @@ function hideInputError(formElement, inputElement, settings) {
 }
 
 function checkInputValidity(formElement, inputElement, settings) {
-  const { inputErrorClass, errorClass } = settings;
+  if (inputElement.validity.patternMismatch && inputElement.dataset.errorMessage) {
+    inputElement.setCustomValidity(inputElement.dataset.errorMessage);
+  } else {
+    inputElement.setCustomValidity("");
+  }
 
-  if (!inputElement.value.trim()) {
-    showInputError(
-      formElement,
-      inputElement,
-      "Поле обязательно для заполнения",
-      settings
-    );
+  if (!inputElement.validity.valid) {
+    showInputError(formElement, inputElement, inputElement.validationMessage, settings);
     return;
-  }
-
-  const minLength =
-    inputElement.classList.contains("popup__input_type_name") ||
-    inputElement.classList.contains("popup__input_type_card-name")
-      ? 2
-      : 2;
-
-  const maxLength = inputElement.classList.contains("popup__input_type_name")
-    ? 40
-    : inputElement.classList.contains("popup__input_type_card-name")
-    ? 30
-    : inputElement.classList.contains("popup__input_type_description")
-    ? 200
-    : Infinity;
-
-  if (
-    inputElement.value.length < minLength ||
-    inputElement.value.length > maxLength
-  ) {
-    let message = "";
-    if (
-      inputElement.classList.contains("popup__input_type_name") ||
-      inputElement.classList.contains("popup__input_type_card-name")
-    ) {
-      message = "Длина должна быть от 2 до 40 символов (или 2–30 для названия)";
-    } else if (
-      inputElement.classList.contains("popup__input_type_description")
-    ) {
-      message = "Длина должна быть от 2 до 200 символов";
-    } else if (inputElement.classList.contains("popup__input_type_url")) {
-      message = "Введите корректную ссылку";
-    }
-    showInputError(formElement, inputElement, message, settings);
-    return;
-  }
-
-  if (
-    inputElement.classList.contains("popup__input_type_name") ||
-    inputElement.classList.contains("popup__input_type_card-name")
-  ) {
-    const regex = /^[a-zA-Zа-яА-ЯёЁ\s-]+$/;
-    if (!regex.test(inputElement.value)) {
-      const customMessage =
-        inputElement.dataset.errorMessage ||
-        "Разрешены только латинские, кириллические буквы, знаки дефиса и пробелы";
-      showInputError(formElement, inputElement, customMessage, settings);
-      return;
-    }
-  }
-
-  if (inputElement.classList.contains("popup__input_type_url")) {
-    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\.(jpg|jpeg|png|gif|svg|webp)(\?.*)?$/i;
-    if (!urlRegex.test(inputElement.value)) {
-      showInputError(
-        formElement,
-        inputElement,
-        "Введите корректную ссылку",
-        settings
-      );
-      return;
-    }
   }
 
   hideInputError(formElement, inputElement, settings);
@@ -130,6 +67,7 @@ function setEventListeners(formElement, settings) {
 function clearValidation(formElement, settings) {
   const inputElements = formElement.querySelectorAll(settings.inputSelector);
   inputElements.forEach((input) => {
+    input.setCustomValidity("");
     hideInputError(formElement, input, settings);
   });
   disableSubmitButton(formElement, settings);
@@ -138,10 +76,6 @@ function clearValidation(formElement, settings) {
 function enableValidation(settings) {
   const formElements = document.querySelectorAll(settings.formSelector);
   formElements.forEach((formElement) => {
-    formElement.querySelectorAll(settings.inputSelector).forEach((input) => {
-      input.removeEventListener("input", () => {});
-    });
-
     setEventListeners(formElement, settings);
     toggleButtonState(formElement, settings);
   });
