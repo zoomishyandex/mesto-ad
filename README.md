@@ -4,7 +4,7 @@
 
 ## Ссылка на проект
 
-- [GitHub Pages](https://mesto-ad.vercel.app/)
+- [GitHub Pages](https://zoomishyandex.github.io/mesto-ad-deploy/)
 
 ## Команды
 
