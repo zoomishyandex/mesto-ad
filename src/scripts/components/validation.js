@@ -1,84 +1,82 @@
-function showInputError(formElement, inputElement, errorMessage, settings) {
-  const errorElement = formElement.querySelector(`#${inputElement.id}-error`);
-  errorElement.textContent = errorMessage;
-  errorElement.classList.add(settings.errorClass);
-  inputElement.classList.add(settings.inputErrorClass);
-}
+const paintFieldError = (form, field, message, cfg) => {
+  const hint = form.querySelector(`#${field.id}-error`);
+  hint.textContent = message;
+  hint.classList.add(cfg.errorClass);
+  field.classList.add(cfg.inputErrorClass);
+};
 
-function hideInputError(formElement, inputElement, settings) {
-  const errorElement = formElement.querySelector(`#${inputElement.id}-error`);
-  errorElement.textContent = "";
-  errorElement.classList.remove(settings.errorClass);
-  inputElement.classList.remove(settings.inputErrorClass);
-}
+const clearFieldError = (form, field, cfg) => {
+  const hint = form.querySelector(`#${field.id}-error`);
+  hint.textContent = "";
+  hint.classList.remove(cfg.errorClass);
+  field.classList.remove(cfg.inputErrorClass);
+};
 
-function checkInputValidity(formElement, inputElement, settings) {
-  if (inputElement.validity.patternMismatch && inputElement.dataset.errorMessage) {
-    inputElement.setCustomValidity(inputElement.dataset.errorMessage);
+const validateField = (form, field, cfg) => {
+  if (field.validity.patternMismatch && field.dataset.errorMessage) {
+    field.setCustomValidity(field.dataset.errorMessage);
   } else {
-    inputElement.setCustomValidity("");
+    field.setCustomValidity("");
   }
 
-  if (!inputElement.validity.valid) {
-    showInputError(formElement, inputElement, inputElement.validationMessage, settings);
+  if (!field.validity.valid) {
+    paintFieldError(form, field, field.validationMessage, cfg);
     return;
   }
 
-  hideInputError(formElement, inputElement, settings);
-}
+  clearFieldError(form, field, cfg);
+};
 
-function hasInvalidInput(formElement, settings) {
-  const inputElements = formElement.querySelectorAll(settings.inputSelector);
-  return Array.from(inputElements).some((input) => !input.validity.valid);
-}
+const formHasInvalidField = (form, cfg) => {
+  const fields = form.querySelectorAll(cfg.inputSelector);
+  return [...fields].some((field) => !field.validity.valid);
+};
 
-function disableSubmitButton(formElement, settings) {
-  const submitButton = formElement.querySelector(settings.submitButtonSelector);
-  submitButton.disabled = true;
-  submitButton.classList.add(settings.inactiveButtonClass);
-}
+const lockSubmit = (form, cfg) => {
+  const btn = form.querySelector(cfg.submitButtonSelector);
+  btn.disabled = true;
+  btn.classList.add(cfg.inactiveButtonClass);
+};
 
-function enableSubmitButton(formElement, settings) {
-  const submitButton = formElement.querySelector(settings.submitButtonSelector);
-  submitButton.disabled = false;
-  submitButton.classList.remove(settings.inactiveButtonClass);
-}
+const unlockSubmit = (form, cfg) => {
+  const btn = form.querySelector(cfg.submitButtonSelector);
+  btn.disabled = false;
+  btn.classList.remove(cfg.inactiveButtonClass);
+};
 
-function toggleButtonState(formElement, settings) {
-  const isInvalid = hasInvalidInput(formElement, settings);
-  if (isInvalid) {
-    disableSubmitButton(formElement, settings);
+const refreshSubmitLock = (form, cfg) => {
+  if (formHasInvalidField(form, cfg)) {
+    lockSubmit(form, cfg);
   } else {
-    enableSubmitButton(formElement, settings);
+    unlockSubmit(form, cfg);
   }
-}
+};
 
-function setEventListeners(formElement, settings) {
-  const inputElements = formElement.querySelectorAll(settings.inputSelector);
-
-  inputElements.forEach((input) => {
-    input.addEventListener("input", () => {
-      checkInputValidity(formElement, input, settings);
-      toggleButtonState(formElement, settings);
+const wireFieldInputs = (form, cfg) => {
+  const fields = form.querySelectorAll(cfg.inputSelector);
+  fields.forEach((field) => {
+    field.addEventListener("input", () => {
+      validateField(form, field, cfg);
+      refreshSubmitLock(form, cfg);
     });
   });
-}
+};
 
-function clearValidation(formElement, settings) {
-  const inputElements = formElement.querySelectorAll(settings.inputSelector);
-  inputElements.forEach((input) => {
-    input.setCustomValidity("");
-    hideInputError(formElement, input, settings);
+const clearValidation = (form, cfg) => {
+  const fields = form.querySelectorAll(cfg.inputSelector);
+  fields.forEach((field) => {
+    field.setCustomValidity("");
+    clearFieldError(form, field, cfg);
   });
-  disableSubmitButton(formElement, settings);
-}
+  lockSubmit(form, cfg);
+};
 
-function enableValidation(settings) {
-  const formElements = document.querySelectorAll(settings.formSelector);
-  formElements.forEach((formElement) => {
-    setEventListeners(formElement, settings);
-    toggleButtonState(formElement, settings);
+const enableValidation = (cfg) => {
+  const forms = document.querySelectorAll(cfg.formSelector);
+  forms.forEach((form) => {
+    wireFieldInputs(form, cfg);
+    refreshSubmitLock(form, cfg);
   });
-}
+};
 
 export { enableValidation, clearValidation };
