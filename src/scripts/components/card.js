@@ -1,60 +1,60 @@
-const cloneCardFromTemplate = () =>
+const takeCardShell = () =>
   document
     .getElementById("card-template")
     .content.querySelector(".card")
     .cloneNode(true);
 
-export const applyLikeVisual = (cardPayload, likeBtn, counterNode) => {
-  const viewerId = likeBtn.dataset.viewerId;
-  const likedByMe = cardPayload.likes.some((person) => person._id === viewerId);
-  likeBtn.classList.toggle("card__like-button_is-active", likedByMe);
-  counterNode.textContent = String(cardPayload.likes.length);
+export const syncHeartUi = (model, heart, counter) => {
+  const selfId = heart.dataset.selfId;
+  const active = model.likes.some((u) => u._id === selfId);
+  heart.classList.toggle("card__like-button_is-active", active);
+  counter.textContent = String(model.likes.length);
 };
 
-export const detachCardNode = (node) => {
-  node.remove();
+export const erasePlaceNode = (el) => {
+  el.remove();
 };
 
-export const buildCard = (
-  cardPayload,
-  viewerUserId,
-  { handleImageClick, handleLike, handleRemove, handleInfo }
+export const assemblePlaceCard = (
+  model,
+  selfId,
+  { zoomPhoto, toggleHeart, erasePlace, openFacts }
 ) => {
-  const root = cloneCardFromTemplate();
-  const likeBtn = root.querySelector(".card__like-button");
-  const counterNode = root.querySelector(".card__like-count");
-  const trashBtn = root.querySelector(".card__control-button_type_delete");
-  const infoBtn = root.querySelector(".card__control-button_type_info");
-  const img = root.querySelector(".card__image");
+  const el = takeCardShell();
+  const heart = el.querySelector(".card__like-button");
+  const counter = el.querySelector(".card__like-count");
+  const bin = el.querySelector(".card__control-button_type_delete");
+  const facts = el.querySelector(".card__control-button_type_info");
+  const pic = el.querySelector(".card__image");
 
-  img.src = cardPayload.link;
-  img.alt = cardPayload.name;
-  root.querySelector(".card__title").textContent = cardPayload.name;
-  likeBtn.dataset.viewerId = viewerUserId;
-  applyLikeVisual(cardPayload, likeBtn, counterNode);
+  pic.src = model.link;
+  pic.alt = model.name;
+  el.querySelector(".card__title").textContent = model.name;
+  heart.dataset.selfId = selfId;
+  syncHeartUi(model, heart, counter);
 
-  const mine = cardPayload.owner._id === viewerUserId;
-  if (!mine) {
-    trashBtn.remove();
+  const owner = model.owner._id === selfId;
+  if (!owner) {
+    bin.remove();
   }
 
-  likeBtn.addEventListener("click", () =>
-    handleLike({
-      cardId: cardPayload._id,
-      alreadyLiked: likeBtn.classList.contains("card__like-button_is-active"),
-      likeBtn,
-      counterNode,
+  heart.addEventListener("click", () =>
+    toggleHeart({
+      cardId: model._id,
+      removeLike: heart.classList.contains("card__like-button_is-active"),
+      heart,
+      counter,
     })
   );
 
-  if (mine) {
-    trashBtn.addEventListener("click", () =>
-      handleRemove({ cardId: cardPayload._id, root })
+  if (owner) {
+    bin.addEventListener("click", () =>
+      erasePlace({ cardId: model._id, el })
     );
   }
 
-  infoBtn.addEventListener("click", () => handleInfo(cardPayload._id));
-  img.addEventListener("click", () => handleImageClick(cardPayload));
+  facts.addEventListener("click", () => openFacts(model._id));
+  pic.addEventListener("click", () => zoomPhoto(model));
 
-  return root;
+  return el;
 };

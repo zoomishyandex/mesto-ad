@@ -1,82 +1,83 @@
-const paintFieldError = (form, field, message, cfg) => {
-  const hint = form.querySelector(`#${field.id}-error`);
-  hint.textContent = message;
-  hint.classList.add(cfg.errorClass);
-  field.classList.add(cfg.inputErrorClass);
+const attachError = (form, input, text, rules) => {
+  const slot = form.querySelector(`#${input.id}-error`);
+  slot.textContent = text;
+  slot.classList.add(rules.errorClass);
+  input.classList.add(rules.inputErrorClass);
 };
 
-const clearFieldError = (form, field, cfg) => {
-  const hint = form.querySelector(`#${field.id}-error`);
-  hint.textContent = "";
-  hint.classList.remove(cfg.errorClass);
-  field.classList.remove(cfg.inputErrorClass);
+const detachError = (form, input, rules) => {
+  const slot = form.querySelector(`#${input.id}-error`);
+  slot.textContent = "";
+  slot.classList.remove(rules.errorClass);
+  input.classList.remove(rules.inputErrorClass);
 };
 
-const validateField = (form, field, cfg) => {
-  if (field.validity.patternMismatch && field.dataset.errorMessage) {
-    field.setCustomValidity(field.dataset.errorMessage);
+const runFieldRules = (form, input, rules) => {
+  if (input.validity.patternMismatch && input.dataset.errorMessage) {
+    input.setCustomValidity(input.dataset.errorMessage);
   } else {
-    field.setCustomValidity("");
+    input.setCustomValidity("");
   }
 
-  if (!field.validity.valid) {
-    paintFieldError(form, field, field.validationMessage, cfg);
+  if (!input.validity.valid) {
+    attachError(form, input, input.validationMessage, rules);
     return;
   }
 
-  clearFieldError(form, field, cfg);
+  detachError(form, input, rules);
 };
 
-const formHasInvalidField = (form, cfg) => {
-  const fields = form.querySelectorAll(cfg.inputSelector);
-  return [...fields].some((field) => !field.validity.valid);
+const anyFieldBad = (form, rules) => {
+  for (const input of form.querySelectorAll(rules.inputSelector)) {
+    if (!input.validity.valid) {
+      return true;
+    }
+  }
+  return false;
 };
 
-const lockSubmit = (form, cfg) => {
-  const btn = form.querySelector(cfg.submitButtonSelector);
-  btn.disabled = true;
-  btn.classList.add(cfg.inactiveButtonClass);
+const blockSend = (form, rules) => {
+  const send = form.querySelector(rules.submitButtonSelector);
+  send.disabled = true;
+  send.classList.add(rules.inactiveButtonClass);
 };
 
-const unlockSubmit = (form, cfg) => {
-  const btn = form.querySelector(cfg.submitButtonSelector);
-  btn.disabled = false;
-  btn.classList.remove(cfg.inactiveButtonClass);
+const allowSend = (form, rules) => {
+  const send = form.querySelector(rules.submitButtonSelector);
+  send.disabled = false;
+  send.classList.remove(rules.inactiveButtonClass);
 };
 
-const refreshSubmitLock = (form, cfg) => {
-  if (formHasInvalidField(form, cfg)) {
-    lockSubmit(form, cfg);
+const syncSendState = (form, rules) => {
+  if (anyFieldBad(form, rules)) {
+    blockSend(form, rules);
   } else {
-    unlockSubmit(form, cfg);
+    allowSend(form, rules);
   }
 };
 
-const wireFieldInputs = (form, cfg) => {
-  const fields = form.querySelectorAll(cfg.inputSelector);
-  fields.forEach((field) => {
-    field.addEventListener("input", () => {
-      validateField(form, field, cfg);
-      refreshSubmitLock(form, cfg);
+const hookInputs = (form, rules) => {
+  for (const input of form.querySelectorAll(rules.inputSelector)) {
+    input.addEventListener("input", () => {
+      runFieldRules(form, input, rules);
+      syncSendState(form, rules);
     });
-  });
+  }
 };
 
-const clearValidation = (form, cfg) => {
-  const fields = form.querySelectorAll(cfg.inputSelector);
-  fields.forEach((field) => {
-    field.setCustomValidity("");
-    clearFieldError(form, field, cfg);
-  });
-  lockSubmit(form, cfg);
+const clearValidation = (form, rules) => {
+  for (const input of form.querySelectorAll(rules.inputSelector)) {
+    input.setCustomValidity("");
+    detachError(form, input, rules);
+  }
+  blockSend(form, rules);
 };
 
-const enableValidation = (cfg) => {
-  const forms = document.querySelectorAll(cfg.formSelector);
-  forms.forEach((form) => {
-    wireFieldInputs(form, cfg);
-    refreshSubmitLock(form, cfg);
-  });
+const enableValidation = (rules) => {
+  for (const form of document.querySelectorAll(rules.formSelector)) {
+    hookInputs(form, rules);
+    syncSendState(form, rules);
+  }
 };
 
 export { enableValidation, clearValidation };

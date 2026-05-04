@@ -1,46 +1,48 @@
-const serverConfig = {
-  root: "https://mesto.nomoreparties.co/v1/GROUP_ID",
-  headers: {
-    authorization: "TOKEN",
-    "Content-Type": "application/json",
-  },
+const GROUP_ID = "";
+const TOKEN = "";
+
+const cohortBase = () => `https://mesto.nomoreparties.co/v1/${GROUP_ID}`;
+
+const readJsonOrThrow = (res) =>
+  res.ok ? res.json() : Promise.reject(`Ошибка: ${res.status}`);
+
+const send = (path, options = {}) => {
+  const { headers: extraHeaders, ...rest } = options;
+  return fetch(`${cohortBase()}${path}`, {
+    headers: {
+      authorization: TOKEN,
+      "Content-Type": "application/json",
+      ...(extraHeaders || {}),
+    },
+    ...rest,
+  }).then(readJsonOrThrow);
 };
 
-const ensureOk = (response) =>
-  response.ok ? response.json() : Promise.reject(`Ошибка: ${response.status}`);
+export const loadMe = () => send("/users/me");
 
-const apiRequest = (path, init = {}) =>
-  fetch(`${serverConfig.root}${path}`, {
-    headers: serverConfig.headers,
-    ...init,
-  }).then(ensureOk);
+export const loadCards = () => send("/cards");
 
-export const fetchProfile = () => apiRequest("/users/me");
-
-export const fetchAllCards = () => apiRequest("/cards");
-
-export const patchProfile = ({ name, about }) =>
-  apiRequest("/users/me", {
+export const saveProfile = ({ name, about }) =>
+  send("/users/me", {
     method: "PATCH",
     body: JSON.stringify({ name, about }),
   });
 
-export const patchAvatar = ({ avatar }) =>
-  apiRequest("/users/me/avatar", {
+export const saveAvatar = ({ avatar }) =>
+  send("/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify({ avatar }),
   });
 
-export const postCard = ({ name, link }) =>
-  apiRequest("/cards", {
+export const createPlace = ({ name, link }) =>
+  send("/cards", {
     method: "POST",
     body: JSON.stringify({ name, link }),
   });
 
-export const removeCardRemote = (cardId) =>
-  apiRequest(`/cards/${cardId}`, { method: "DELETE" });
+export const erasePlace = (id) => send(`/cards/${id}`, { method: "DELETE" });
 
-export const setCardLike = (cardId, alreadyLiked) =>
-  apiRequest(`/cards/likes/${cardId}`, {
-    method: alreadyLiked ? "DELETE" : "PUT",
+export const flipLike = (id, removeLike) =>
+  send(`/cards/likes/${id}`, {
+    method: removeLike ? "DELETE" : "PUT",
   });
