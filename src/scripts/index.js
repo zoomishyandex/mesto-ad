@@ -1,48 +1,40 @@
-import {
-  createCardElement,
-  removeCard,
-  updateCardLikeState,
-} from "./components/card.js";
-import {
-  openModalWindow,
-  closeModalWindow,
-  setCloseModalWindowEventListeners,
-} from "./components/modal.js";
+import { assemblePlaceCard, erasePlaceNode, syncHeartUi } from "./components/card.js";
+import { openLayer, closeLayer, bindLayerDismiss } from "./components/modal.js";
 import { enableValidation, clearValidation } from "./components/validation.js";
 import {
-  getUserInfo,
-  getCardList,
-  setUserInfo,
-  setUserAvatar,
-  addCard,
-  deleteCardById,
-  changeLikeCardStatus,
+  loadMe,
+  loadCards,
+  saveProfile,
+  saveAvatar,
+  createPlace,
+  erasePlace,
+  flipLike,
 } from "./components/api.js";
 
-const placesWrap = document.querySelector(".places__list");
-const profileFormModalWindow = document.querySelector(".popup_type_edit");
-const profileForm = profileFormModalWindow.querySelector(".popup__form");
-const profileTitleInput = profileForm.querySelector(".popup__input_type_name");
-const profileDescriptionInput = profileForm.querySelector(
-  ".popup__input_type_description"
-);
+const listRoot = document.querySelector(".places__list");
 
-const cardFormModalWindow = document.querySelector(".popup_type_new-card");
-const cardForm = cardFormModalWindow.querySelector(".popup__form");
-const cardNameInput = cardForm.querySelector(".popup__input_type_card-name");
-const cardLinkInput = cardForm.querySelector(".popup__input_type_url");
+const userPopup = document.querySelector(".popup_type_edit");
+const userForm = userPopup.querySelector(".popup__form");
+const userName = userForm.querySelector(".popup__input_type_name");
+const userJob = userForm.querySelector(".popup__input_type_description");
 
-const imageModalWindow = document.querySelector(".popup_type_image");
-const imageElement = imageModalWindow.querySelector(".popup__image");
-const imageCaption = imageModalWindow.querySelector(".popup__caption");
+const placePopup = document.querySelector(".popup_type_new-card");
+const placeForm = placePopup.querySelector(".popup__form");
+const placeName = placeForm.querySelector(".popup__input_type_card-name");
+const placeUrl = placeForm.querySelector(".popup__input_type_url");
 
-const openProfileFormButton = document.querySelector(".profile__edit-button");
-const openCardFormButton = document.querySelector(".profile__add-button");
+const picPopup = document.querySelector(".popup_type_image");
+const picNode = picPopup.querySelector(".popup__image");
+const picText = picPopup.querySelector(".popup__caption");
 
-const profileTitle = document.querySelector(".profile__title");
-const profileDescription = document.querySelector(".profile__description");
-const profileAvatar = document.querySelector(".profile__image");
-const validationSettings = {
+const btnEdit = document.querySelector(".profile__edit-button");
+const btnAdd = document.querySelector(".profile__add-button");
+
+const textName = document.querySelector(".profile__title");
+const textJob = document.querySelector(".profile__description");
+const blockAvatar = document.querySelector(".profile__image");
+
+const rules = {
   formSelector: ".popup__form",
   inputSelector: ".popup__input",
   submitButtonSelector: ".popup__button",
@@ -51,212 +43,199 @@ const validationSettings = {
   errorClass: "popup__error_visible",
 };
 
-const avatarFormModalWindow = document.querySelector(".popup_type_edit-avatar");
-const avatarForm = avatarFormModalWindow.querySelector(".popup__form");
-const avatarInput = avatarForm.querySelector(".popup__input_type_avatar");
-const infoModalWindow = document.querySelector(".popup_type_info");
-const infoDefinitionList = infoModalWindow.querySelector(".popup__list_type_definitions");
-const infoUsersList = infoModalWindow.querySelector(".popup__list_type_users");
-const infoDefinitionTemplate = document.querySelector("#popup-info-definition-template").content;
-const infoUserTemplate = document.querySelector("#popup-info-user-preview-template").content;
-const allPopups = document.querySelectorAll(".popup");
-let currentUserId = "";
-const handleRequestError = () => {};
+const facePopup = document.querySelector(".popup_type_edit-avatar");
+const faceForm = facePopup.querySelector(".popup__form");
+const faceUrl = faceForm.querySelector(".popup__input_type_avatar");
 
-const handlePreviewPicture = ({ name, link }) => {
-  imageElement.src = link;
-  imageElement.alt = name;
-  imageCaption.textContent = name;
-  openModalWindow(imageModalWindow);
-};
+const factPopup = document.querySelector(".popup_type_info");
+const factDl = factPopup.querySelector(".popup__list_type_definitions");
+const factUl = factPopup.querySelector(".popup__list_type_users");
+const factDlTpl = document.querySelector("#popup-info-definition-template").content;
+const factLiTpl = document.querySelector("#popup-info-user-preview-template").content;
 
-const formatDate = (date) =>
-  date.toLocaleDateString("ru-RU", {
+const layers = document.querySelectorAll(".popup");
+
+let selfId = "";
+
+const swallow = () => {};
+
+const ruLongDate = (d) =>
+  d.toLocaleDateString("ru-RU", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-const renderSubmitButton = (button, isLoading, loadingText) => {
-  if (!button.dataset.defaultText) {
-    button.dataset.defaultText = button.textContent;
+const stashDefaultCaption = (b) => {
+  if (!b.dataset.caption) {
+    b.dataset.caption = b.textContent;
   }
-
-  button.textContent = isLoading ? loadingText : button.dataset.defaultText;
 };
 
-const setUserData = (userData) => {
-  profileTitle.textContent = userData.name;
-  profileDescription.textContent = userData.about;
-  profileAvatar.style.backgroundImage = `url(${userData.avatar})`;
-  currentUserId = userData._id;
+const pulseButton = (b, busy, busyText) => {
+  stashDefaultCaption(b);
+  b.textContent = busy ? busyText : b.dataset.caption;
 };
 
-const createInfoString = (term, value) => {
-  const definitionItem = infoDefinitionTemplate
-    .querySelector(".popup__list-item")
-    .cloneNode(true);
-  definitionItem.querySelector(".popup__info-term").textContent = term;
-  definitionItem.querySelector(".popup__info-item").textContent = value;
-  return definitionItem;
+const fillHeader = (me) => {
+  textName.textContent = me.name;
+  textJob.textContent = me.about;
+  blockAvatar.style.backgroundImage = `url(${me.avatar})`;
+  selfId = me._id;
 };
 
-const createUserPreview = (userName) => {
-  const userPreview = infoUserTemplate
-    .querySelector(".popup__list-item_type_badge")
-    .cloneNode(true);
-  userPreview.textContent = userName;
-  return userPreview;
+const showZoom = ({ name, link }) => {
+  picNode.src = link;
+  picNode.alt = name;
+  picText.textContent = name;
+  openLayer(picPopup);
 };
 
-const handleInfoClick = (cardId) => {
-  getCardList()
-    .then((cards) => {
-      const cardData = cards.find((card) => card._id === cardId);
-      if (!cardData) {
+const row = (k, v) => {
+  const n = factDlTpl.querySelector(".popup__list-item").cloneNode(true);
+  n.querySelector(".popup__info-term").textContent = k;
+  n.querySelector(".popup__info-item").textContent = v;
+  return n;
+};
+
+const chip = (s) => {
+  const n = factLiTpl.querySelector(".popup__list-item_type_badge").cloneNode(true);
+  n.textContent = s;
+  return n;
+};
+
+const showFacts = (id) => {
+  loadCards()
+    .then((arr) => {
+      const one = arr.find((x) => x._id === id);
+      if (!one) {
         return;
       }
 
-      infoDefinitionList.replaceChildren(
-        createInfoString("Описание:", cardData.name),
-        createInfoString("Дата создания:", formatDate(new Date(cardData.createdAt))),
-        createInfoString("Владелец:", cardData.owner.name),
-        createInfoString("Количество лайков:", String(cardData.likes.length))
+      factDl.replaceChildren(
+        row("Описание:", one.name),
+        row("Дата создания:", ruLongDate(new Date(one.createdAt))),
+        row("Владелец:", one.owner.name),
+        row("Количество лайков:", String(one.likes.length))
       );
 
-      if (cardData.likes.length === 0) {
-        infoUsersList.replaceChildren(createUserPreview("Пока никто не лайкнул"));
+      if (one.likes.length === 0) {
+        factUl.replaceChildren(chip("Пока никто не лайкнул"));
       } else {
-        infoUsersList.replaceChildren(
-          ...cardData.likes.map((user) => createUserPreview(user.name))
-        );
+        factUl.replaceChildren(...one.likes.map((u) => chip(u.name)));
       }
 
-      openModalWindow(infoModalWindow);
+      openLayer(factPopup);
     })
-    .catch(handleRequestError);
+    .catch(swallow);
 };
 
-const handleLikeClick = ({ cardId, isLiked, likeButton, likeCountElement }) => {
-  changeLikeCardStatus(cardId, isLiked)
-    .then((updatedCard) => {
-      updateCardLikeState(updatedCard, likeButton, likeCountElement);
+const onHeart = ({ cardId, removeLike, heart, counter }) => {
+  flipLike(cardId, removeLike)
+    .then((next) => {
+      syncHeartUi(next, heart, counter);
     })
-    .catch(handleRequestError);
+    .catch(swallow);
 };
 
-const handleDeleteCard = ({ cardId, cardElement }) => {
-  deleteCardById(cardId)
+const onBin = ({ cardId, el }) => {
+  erasePlace(cardId)
     .then(() => {
-      removeCard(cardElement);
+      erasePlaceNode(el);
     })
-    .catch(handleRequestError);
+    .catch(swallow);
 };
 
-const renderCard = (cardData, isPrepend = false) => {
-  const cardElement = createCardElement(cardData, currentUserId, {
-    onPreviewPicture: handlePreviewPicture,
-    onLikeIcon: handleLikeClick,
-    onDeleteCard: handleDeleteCard,
-    onInfoClick: handleInfoClick,
+const placeOne = (model, head = false) => {
+  const el = assemblePlaceCard(model, selfId, {
+    zoomPhoto: showZoom,
+    toggleHeart: onHeart,
+    erasePlace: onBin,
+    openFacts: showFacts,
   });
-
-  if (isPrepend) {
-    placesWrap.prepend(cardElement);
+  if (head) {
+    listRoot.prepend(el);
     return;
   }
-
-  placesWrap.append(cardElement);
+  listRoot.append(el);
 };
 
-const handleProfileFormSubmit = (evt) => {
-  evt.preventDefault();
-  const submitButton = evt.submitter;
-  renderSubmitButton(submitButton, true, "Сохранение...");
-  setUserInfo({
-    name: profileTitleInput.value,
-    about: profileDescriptionInput.value,
-  })
-    .then((userData) => {
-      setUserData(userData);
-      closeModalWindow(profileFormModalWindow);
+userForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const b = e.submitter;
+  pulseButton(b, true, "Сохранение...");
+  saveProfile({ name: userName.value, about: userJob.value })
+    .then((me) => {
+      fillHeader(me);
+      closeLayer(userPopup);
     })
-    .catch(handleRequestError)
+    .catch(swallow)
     .finally(() => {
-      renderSubmitButton(submitButton, false);
+      pulseButton(b, false);
     });
-};
+});
 
-const handleAvatarFormSubmit = (evt) => {
-  evt.preventDefault();
-  const submitButton = evt.submitter;
-  renderSubmitButton(submitButton, true, "Сохранение...");
-  setUserAvatar({
-    avatar: avatarInput.value,
-  })
-    .then((userData) => {
-      setUserData(userData);
-      closeModalWindow(avatarFormModalWindow);
+faceForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const b = e.submitter;
+  pulseButton(b, true, "Сохранение...");
+  saveAvatar({ avatar: faceUrl.value })
+    .then((me) => {
+      fillHeader(me);
+      closeLayer(facePopup);
     })
-    .catch(handleRequestError)
+    .catch(swallow)
     .finally(() => {
-      renderSubmitButton(submitButton, false);
+      pulseButton(b, false);
     });
-};
+});
 
-const handleCardFormSubmit = (evt) => {
-  evt.preventDefault();
-  const submitButton = evt.submitter;
-  renderSubmitButton(submitButton, true, "Создание...");
-  addCard({
-    name: cardNameInput.value,
-    link: cardLinkInput.value,
-  })
-    .then((cardData) => {
-      renderCard(cardData, true);
-      closeModalWindow(cardFormModalWindow);
-      cardForm.reset();
+placeForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const b = e.submitter;
+  pulseButton(b, true, "Создание...");
+  createPlace({ name: placeName.value, link: placeUrl.value })
+    .then((model) => {
+      placeOne(model, true);
+      closeLayer(placePopup);
+      placeForm.reset();
     })
-    .catch(handleRequestError)
+    .catch(swallow)
     .finally(() => {
-      renderSubmitButton(submitButton, false);
+      pulseButton(b, false);
     });
-};
-
-profileForm.addEventListener("submit", handleProfileFormSubmit);
-cardForm.addEventListener("submit", handleCardFormSubmit);
-avatarForm.addEventListener("submit", handleAvatarFormSubmit);
-
-openProfileFormButton.addEventListener("click", () => {
-  profileTitleInput.value = profileTitle.textContent;
-  profileDescriptionInput.value = profileDescription.textContent;
-  clearValidation(profileForm, validationSettings);
-  openModalWindow(profileFormModalWindow);
 });
 
-profileAvatar.addEventListener("click", () => {
-  avatarForm.reset();
-  clearValidation(avatarForm, validationSettings);
-  openModalWindow(avatarFormModalWindow);
+btnEdit.addEventListener("click", () => {
+  userName.value = textName.textContent;
+  userJob.value = textJob.textContent;
+  clearValidation(userForm, rules);
+  openLayer(userPopup);
 });
 
-openCardFormButton.addEventListener("click", () => {
-  cardForm.reset();
-  clearValidation(cardForm, validationSettings);
-  openModalWindow(cardFormModalWindow);
+blockAvatar.addEventListener("click", () => {
+  faceForm.reset();
+  clearValidation(faceForm, rules);
+  openLayer(facePopup);
 });
 
-allPopups.forEach((popup) => {
-  setCloseModalWindowEventListeners(popup);
+btnAdd.addEventListener("click", () => {
+  placeForm.reset();
+  clearValidation(placeForm, rules);
+  openLayer(placePopup);
 });
 
-enableValidation(validationSettings);
+layers.forEach((layer) => {
+  bindLayerDismiss(layer);
+});
 
-Promise.all([getCardList(), getUserInfo()])
-  .then(([cards, userData]) => {
-    setUserData(userData);
-    cards.forEach((card) => {
-      renderCard(card);
+enableValidation(rules);
+
+Promise.all([loadCards(), loadMe()])
+  .then(([arr, me]) => {
+    fillHeader(me);
+    arr.forEach((model) => {
+      placeOne(model);
     });
   })
-  .catch(handleRequestError);
+  .catch(swallow);

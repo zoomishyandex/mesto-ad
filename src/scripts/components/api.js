@@ -1,69 +1,48 @@
-const config = {
-  baseUrl: "https://mesto.nomoreparties.co/v1/apf-cohort-202",
-  headers: {
-    authorization: "64e8369c-447b-45ec-887d-bd0207d3e076",
-    "Content-Type": "application/json",
-  },
+const GROUP_ID = "";
+const TOKEN = "";
+
+const cohortBase = () => `https://mesto.nomoreparties.co/v1/${GROUP_ID}`;
+
+const readJsonOrThrow = (res) =>
+  res.ok ? res.json() : Promise.reject(`Ошибка: ${res.status}`);
+
+const send = (path, options = {}) => {
+  const { headers: extraHeaders, ...rest } = options;
+  return fetch(`${cohortBase()}${path}`, {
+    headers: {
+      authorization: TOKEN,
+      "Content-Type": "application/json",
+      ...(extraHeaders || {}),
+    },
+    ...rest,
+  }).then(readJsonOrThrow);
 };
 
-const getResponseData = (res) => {
-  return res.ok ? res.json() : Promise.reject(`Ошибка: ${res.status}`);
-};
+export const loadMe = () => send("/users/me");
 
-export const getUserInfo = () => {
-  return fetch(`${config.baseUrl}/users/me`, {
-    headers: config.headers,
-  }).then(getResponseData);
-};
+export const loadCards = () => send("/cards");
 
-export const getCardList = () => {
-  return fetch(`${config.baseUrl}/cards`, {
-    headers: config.headers,
-  }).then(getResponseData);
-};
-
-export const setUserInfo = ({ name, about }) => {
-  return fetch(`${config.baseUrl}/users/me`, {
+export const saveProfile = ({ name, about }) =>
+  send("/users/me", {
     method: "PATCH",
-    headers: config.headers,
-    body: JSON.stringify({
-      name,
-      about,
-    }),
-  }).then(getResponseData);
-};
+    body: JSON.stringify({ name, about }),
+  });
 
-export const setUserAvatar = ({ avatar }) => {
-  return fetch(`${config.baseUrl}/users/me/avatar`, {
+export const saveAvatar = ({ avatar }) =>
+  send("/users/me/avatar", {
     method: "PATCH",
-    headers: config.headers,
-    body: JSON.stringify({
-      avatar,
-    }),
-  }).then(getResponseData);
-};
+    body: JSON.stringify({ avatar }),
+  });
 
-export const addCard = ({ name, link }) => {
-  return fetch(`${config.baseUrl}/cards`, {
+export const createPlace = ({ name, link }) =>
+  send("/cards", {
     method: "POST",
-    headers: config.headers,
-    body: JSON.stringify({
-      name,
-      link,
-    }),
-  }).then(getResponseData);
-};
+    body: JSON.stringify({ name, link }),
+  });
 
-export const deleteCardById = (cardId) => {
-  return fetch(`${config.baseUrl}/cards/${cardId}`, {
-    method: "DELETE",
-    headers: config.headers,
-  }).then(getResponseData);
-};
+export const erasePlace = (id) => send(`/cards/${id}`, { method: "DELETE" });
 
-export const changeLikeCardStatus = (cardId, isLiked) => {
-  return fetch(`${config.baseUrl}/cards/likes/${cardId}`, {
-    method: isLiked ? "DELETE" : "PUT",
-    headers: config.headers,
-  }).then(getResponseData);
-};
+export const flipLike = (id, removeLike) =>
+  send(`/cards/likes/${id}`, {
+    method: removeLike ? "DELETE" : "PUT",
+  });

@@ -1,29 +1,35 @@
-const handleEscUp = (evt) => {
-  if (evt.key === "Escape") {
-    const activePopup = document.querySelector(".popup_is-opened");
-    closeModalWindow(activePopup);
+const closeTopPopup = () => {
+  const layer = document.querySelector(".popup_is-opened");
+  if (!layer) {
+    return;
+  }
+  closeLayer(layer);
+};
+
+const onKeyUp = (event) => {
+  if (event.key === "Escape") {
+    closeTopPopup();
   }
 };
 
-export const openModalWindow = (modalWindow) => {
-  modalWindow.classList.add("popup_is-opened");
-  document.addEventListener("keyup", handleEscUp);
+export const openLayer = (layer) => {
+  layer.classList.add("popup_is-opened");
+  document.addEventListener("keyup", onKeyUp);
 };
 
-export const closeModalWindow = (modalWindow) => {
-  modalWindow.classList.remove("popup_is-opened");
-  document.removeEventListener("keyup", handleEscUp);
+export const closeLayer = (layer) => {
+  layer.classList.remove("popup_is-opened");
+  document.removeEventListener("keyup", onKeyUp);
 };
 
-export const setCloseModalWindowEventListeners = (modalWindow) => {
-  const closeButtonElement = modalWindow.querySelector(".popup__close");
-  closeButtonElement.addEventListener("click", () => {
-    closeModalWindow(modalWindow);
+export const bindLayerDismiss = (layer) => {
+  layer.querySelector(".popup__close").addEventListener("click", () => {
+    closeLayer(layer);
   });
 
-  modalWindow.addEventListener("mousedown", (evt) => {
-    if (evt.target.classList.contains("popup")) {
-      closeModalWindow(modalWindow);
+  layer.addEventListener("mousedown", (event) => {
+    if (event.target === layer) {
+      closeLayer(layer);
     }
   });
 };
