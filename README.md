@@ -2,6 +2,7 @@
 
 Проект Mesto с интеграцией API, валидацией форм и сборкой на Vite.
 
+
 ## Ссылка на проект
 
 - [GitHub Pages](https://zoomishyandex.github.io/mesto-ad-deploy/)
