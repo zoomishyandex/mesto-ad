@@ -1,29 +1,38 @@
-const handleEscUp = (evt) => {
-  if (evt.key === "Escape") {
-    const activePopup = document.querySelector(".popup_is-opened");
-    closeModalWindow(activePopup);
+let escapeHandler = null;
+
+const onEscapePress = (event) => {
+  if (event.key === "Escape") {
+    const openedModal = document.querySelector(".popup_is-opened");
+    closeModal(openedModal);
   }
 };
 
-export const openModalWindow = (modalWindow) => {
-  modalWindow.classList.add("popup_is-opened");
-  document.addEventListener("keyup", handleEscUp);
+export const openModal = (modalElement) => {
+  modalElement.classList.add("popup_is-opened");
+  escapeHandler = onEscapePress;
+  document.addEventListener("keyup", escapeHandler);
 };
 
-export const closeModalWindow = (modalWindow) => {
-  modalWindow.classList.remove("popup_is-opened");
-  document.removeEventListener("keyup", handleEscUp);
+export const closeModal = (modalElement) => {
+  if (!modalElement) {
+    return;
+  }
+  modalElement.classList.remove("popup_is-opened");
+  document.removeEventListener("keyup", escapeHandler);
+  escapeHandler = null;
 };
 
-export const setCloseModalWindowEventListeners = (modalWindow) => {
-  const closeButtonElement = modalWindow.querySelector(".popup__close");
-  closeButtonElement.addEventListener("click", () => {
-    closeModalWindow(modalWindow);
+export const setupModalControls = (modalElement) => {
+  const closeControl = modalElement.querySelector(".popup__close");
+
+  closeControl.addEventListener("click", () => {
+    closeModal(modalElement);
   });
 
-  modalWindow.addEventListener("mousedown", (evt) => {
-    if (evt.target.classList.contains("popup")) {
-      closeModalWindow(modalWindow);
+  modalElement.addEventListener("mousedown", (event) => {
+    const clickedOverlay = event.target.classList.contains("popup");
+    if (clickedOverlay) {
+      closeModal(modalElement);
     }
   });
 };

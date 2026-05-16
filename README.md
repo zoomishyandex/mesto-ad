@@ -5,7 +5,7 @@
 
 ## Ссылка на проект
 
-- [GitHub Pages](https://zoomishyandex.github.io/mesto-ad-deploy/)
+- [GitHub Pages](https://YOUR_USERNAME.github.io/mesto-ad-deploy/)
 
 ## Команды
 
