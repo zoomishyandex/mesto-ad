@@ -1,8 +1,6 @@
 .popup__label {
   display: block;
-  padding: 0 0 0;
-  margin-bottom: 10px;
-  min-height: 55px;
+  margin-bottom: 0;
 }
 
 .popup__label:last-of-type {
