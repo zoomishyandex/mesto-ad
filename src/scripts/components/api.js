@@ -1,53 +1,48 @@
 const GROUP_ID = "";
 const TOKEN = "";
 
-const apiConfig = {
-  baseUrl: `https://mesto.nomoreparties.co/v1/${GROUP_ID}`,
-  headers: {
-    authorization: TOKEN,
-    "Content-Type": "application/json",
-  },
-};
+const buildUrl = (resource) => `https://mesto.nomoreparties.co/v1/${GROUP_ID}${resource}`;
 
-const parseResponse = (response) => {
-  if (response.ok) {
-    return response.json();
-  }
-  return Promise.reject(`Ошибка: ${response.status}`);
-};
+const sharedHeaders = () => ({
+  authorization: TOKEN,
+  "Content-Type": "application/json",
+});
 
-const callApi = (endpoint, requestInit = {}) =>
-  fetch(`${apiConfig.baseUrl}${endpoint}`, {
-    headers: apiConfig.headers,
-    ...requestInit,
-  }).then(parseResponse);
+const resolveBody = (response) =>
+  response.ok ? response.json() : Promise.reject(`Ошибка: ${response.status}`);
 
-export const requestUserInfo = () => callApi("/users/me");
+const mestoFetch = (resource, init = {}) =>
+  fetch(buildUrl(resource), {
+    headers: sharedHeaders(),
+    ...init,
+  }).then(resolveBody);
 
-export const requestCardsData = () => callApi("/cards");
+export const readProfile = () => mestoFetch("/users/me");
 
-export const updateUserInfo = ({ name, about }) =>
-  callApi("/users/me", {
+export const readGallery = () => mestoFetch("/cards");
+
+export const writeProfile = ({ name, about }) =>
+  mestoFetch("/users/me", {
     method: "PATCH",
     body: JSON.stringify({ name, about }),
   });
 
-export const updateUserAvatar = ({ avatar }) =>
-  callApi("/users/me/avatar", {
+export const writeAvatarImage = ({ avatar }) =>
+  mestoFetch("/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify({ avatar }),
   });
 
-export const submitNewCard = ({ name, link }) =>
-  callApi("/cards", {
+export const createGalleryItem = ({ name, link }) =>
+  mestoFetch("/cards", {
     method: "POST",
     body: JSON.stringify({ name, link }),
   });
 
-export const requestDeleteCard = (cardId) =>
-  callApi(`/cards/${cardId}`, { method: "DELETE" });
+export const removeGalleryItem = (itemId) =>
+  mestoFetch(`/cards/${itemId}`, { method: "DELETE" });
 
-export const requestLikeToggle = (cardId, likedByMe) =>
-  callApi(`/cards/likes/${cardId}`, {
-    method: likedByMe ? "DELETE" : "PUT",
+export const switchLikeState = (itemId, userHasLike) =>
+  mestoFetch(`/cards/likes/${itemId}`, {
+    method: userHasLike ? "DELETE" : "PUT",
   });
