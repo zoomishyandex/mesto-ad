@@ -1,60 +1,64 @@
-const takeCardShell = () =>
+const getCardTemplateNode = () =>
   document
     .getElementById("card-template")
     .content.querySelector(".card")
     .cloneNode(true);
 
-export const syncHeartUi = (model, heart, counter) => {
-  const selfId = heart.dataset.selfId;
-  const active = model.likes.some((u) => u._id === selfId);
-  heart.classList.toggle("card__like-button_is-active", active);
-  counter.textContent = String(model.likes.length);
+export const refreshLikeDisplay = (cardInfo, likeControl, likesCounter, currentUserKey) => {
+  const userLiked = cardInfo.likes.some((liker) => liker._id === currentUserKey);
+  likeControl.classList.toggle("card__like-button_is-active", userLiked);
+  likesCounter.textContent = cardInfo.likes.length;
 };
 
-export const erasePlaceNode = (el) => {
-  el.remove();
+export const removeCardFromPage = (cardNode) => {
+  cardNode.remove();
 };
 
-export const assemblePlaceCard = (
-  model,
-  selfId,
-  { zoomPhoto, toggleHeart, erasePlace, openFacts }
+export const createCardElement = (
+  cardInfo,
+  currentUserKey,
+  { onImageOpen, onLikeToggle, onCardDelete, onCardInfo }
 ) => {
-  const el = takeCardShell();
-  const heart = el.querySelector(".card__like-button");
-  const counter = el.querySelector(".card__like-count");
-  const bin = el.querySelector(".card__control-button_type_delete");
-  const facts = el.querySelector(".card__control-button_type_info");
-  const pic = el.querySelector(".card__image");
+  const cardNode = getCardTemplateNode();
+  const likeControl = cardNode.querySelector(".card__like-button");
+  const likesCounter = cardNode.querySelector(".card__like-count");
+  const deleteControl = cardNode.querySelector(".card__control-button_type_delete");
+  const infoControl = cardNode.querySelector(".card__control-button_type_info");
+  const imageElement = cardNode.querySelector(".card__image");
 
-  pic.src = model.link;
-  pic.alt = model.name;
-  el.querySelector(".card__title").textContent = model.name;
-  heart.dataset.selfId = selfId;
-  syncHeartUi(model, heart, counter);
+  imageElement.src = cardInfo.link;
+  imageElement.alt = cardInfo.name;
+  cardNode.querySelector(".card__title").textContent = cardInfo.name;
+  refreshLikeDisplay(cardInfo, likeControl, likesCounter, currentUserKey);
 
-  const owner = model.owner._id === selfId;
-  if (!owner) {
-    bin.remove();
+  const isAuthor = cardInfo.owner._id === currentUserKey;
+  if (!isAuthor) {
+    deleteControl.remove();
   }
 
-  heart.addEventListener("click", () =>
-    toggleHeart({
-      cardId: model._id,
-      removeLike: heart.classList.contains("card__like-button_is-active"),
-      heart,
-      counter,
-    })
-  );
+  likeControl.addEventListener("click", () => {
+    const likedByMe = likeControl.classList.contains("card__like-button_is-active");
+    onLikeToggle({
+      cardId: cardInfo._id,
+      likedByMe,
+      likeControl,
+      likesCounter,
+    });
+  });
 
-  if (owner) {
-    bin.addEventListener("click", () =>
-      erasePlace({ cardId: model._id, el })
-    );
+  if (isAuthor) {
+    deleteControl.addEventListener("click", () => {
+      onCardDelete({ cardId: cardInfo._id, cardNode });
+    });
   }
 
-  facts.addEventListener("click", () => openFacts(model._id));
-  pic.addEventListener("click", () => zoomPhoto(model));
+  infoControl.addEventListener("click", () => {
+    onCardInfo(cardInfo._id);
+  });
 
-  return el;
+  imageElement.addEventListener("click", () => {
+    onImageOpen(cardInfo);
+  });
+
+  return cardNode;
 };

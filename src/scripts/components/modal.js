@@ -1,35 +1,38 @@
-const closeTopPopup = () => {
-  const layer = document.querySelector(".popup_is-opened");
-  if (!layer) {
+let escapeHandler = null;
+
+const onEscapePress = (event) => {
+  if (event.key === "Escape") {
+    const openedModal = document.querySelector(".popup_is-opened");
+    closeModal(openedModal);
+  }
+};
+
+export const openModal = (modalElement) => {
+  modalElement.classList.add("popup_is-opened");
+  escapeHandler = onEscapePress;
+  document.addEventListener("keyup", escapeHandler);
+};
+
+export const closeModal = (modalElement) => {
+  if (!modalElement) {
     return;
   }
-  closeLayer(layer);
+  modalElement.classList.remove("popup_is-opened");
+  document.removeEventListener("keyup", escapeHandler);
+  escapeHandler = null;
 };
 
-const onKeyUp = (event) => {
-  if (event.key === "Escape") {
-    closeTopPopup();
-  }
-};
+export const setupModalControls = (modalElement) => {
+  const closeControl = modalElement.querySelector(".popup__close");
 
-export const openLayer = (layer) => {
-  layer.classList.add("popup_is-opened");
-  document.addEventListener("keyup", onKeyUp);
-};
-
-export const closeLayer = (layer) => {
-  layer.classList.remove("popup_is-opened");
-  document.removeEventListener("keyup", onKeyUp);
-};
-
-export const bindLayerDismiss = (layer) => {
-  layer.querySelector(".popup__close").addEventListener("click", () => {
-    closeLayer(layer);
+  closeControl.addEventListener("click", () => {
+    closeModal(modalElement);
   });
 
-  layer.addEventListener("mousedown", (event) => {
-    if (event.target === layer) {
-      closeLayer(layer);
+  modalElement.addEventListener("mousedown", (event) => {
+    const clickedOverlay = event.target.classList.contains("popup");
+    if (clickedOverlay) {
+      closeModal(modalElement);
     }
   });
 };
