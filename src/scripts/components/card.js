@@ -1,64 +1,61 @@
-const getCardTemplateNode = () =>
-  document
-    .getElementById("card-template")
-    .content.querySelector(".card")
-    .cloneNode(true);
+const grabPlaceTemplate = () =>
+  document.getElementById("card-template").content.querySelector(".card").cloneNode(true);
 
-export const refreshLikeDisplay = (cardInfo, likeControl, likesCounter, currentUserKey) => {
-  const userLiked = cardInfo.likes.some((liker) => liker._id === currentUserKey);
-  likeControl.classList.toggle("card__like-button_is-active", userLiked);
-  likesCounter.textContent = cardInfo.likes.length;
+export const syncLikeButton = (placeData, likeBtn, countNode, viewerId) => {
+  const likedByViewer = placeData.likes.some((user) => user._id === viewerId);
+  likeBtn.classList.toggle("card__like-button_is-active", likedByViewer);
+  countNode.textContent = placeData.likes.length;
 };
 
-export const removeCardFromPage = (cardNode) => {
-  cardNode.remove();
+export const dropPlaceCard = (placeNode) => {
+  placeNode.remove();
 };
 
-export const createCardElement = (
-  cardInfo,
-  currentUserKey,
-  { onImageOpen, onLikeToggle, onCardDelete, onCardInfo }
+export const renderPlaceCard = (
+  placeData,
+  viewerId,
+  { onZoom, onHeart, onRemove, onFacts }
 ) => {
-  const cardNode = getCardTemplateNode();
-  const likeControl = cardNode.querySelector(".card__like-button");
-  const likesCounter = cardNode.querySelector(".card__like-count");
-  const deleteControl = cardNode.querySelector(".card__control-button_type_delete");
-  const infoControl = cardNode.querySelector(".card__control-button_type_info");
-  const imageElement = cardNode.querySelector(".card__image");
+  const placeNode = grabPlaceTemplate();
+  const likeBtn = placeNode.querySelector(".card__like-button");
+  const countNode = placeNode.querySelector(".card__like-count");
+  const deleteBtn = placeNode.querySelector(".card__control-button_type_delete");
+  const infoBtn = placeNode.querySelector(".card__control-button_type_info");
+  const imageNode = placeNode.querySelector(".card__image");
 
-  imageElement.src = cardInfo.link;
-  imageElement.alt = cardInfo.name;
-  cardNode.querySelector(".card__title").textContent = cardInfo.name;
-  refreshLikeDisplay(cardInfo, likeControl, likesCounter, currentUserKey);
+  imageNode.src = placeData.link;
+  imageNode.alt = placeData.name;
+  placeNode.querySelector(".card__title").textContent = placeData.name;
+  syncLikeButton(placeData, likeBtn, countNode, viewerId);
 
-  const isAuthor = cardInfo.owner._id === currentUserKey;
-  if (!isAuthor) {
-    deleteControl.remove();
+  const isMine = placeData.owner._id === viewerId;
+  if (!isMine) {
+    deleteBtn.remove();
   }
 
-  likeControl.addEventListener("click", () => {
-    const likedByMe = likeControl.classList.contains("card__like-button_is-active");
-    onLikeToggle({
-      cardId: cardInfo._id,
-      likedByMe,
-      likeControl,
-      likesCounter,
+  likeBtn.addEventListener("click", () => {
+    const alreadyLiked = likeBtn.classList.contains("card__like-button_is-active");
+    onHeart({
+      placeId: placeData._id,
+      alreadyLiked,
+      likeBtn,
+      countNode,
     });
   });
 
-  if (isAuthor) {
-    deleteControl.addEventListener("click", () => {
-      onCardDelete({ cardId: cardInfo._id, cardNode });
+  if (isMine) {
+    deleteBtn.addEventListener("click", () => {
+      onRemove({ placeId: placeData._id, placeNode });
     });
   }
 
-  infoControl.addEventListener("click", () => {
-    onCardInfo(cardInfo._id);
+  infoBtn.addEventListener("click", () => {
+    onFacts(placeData._id);
   });
 
-  imageElement.addEventListener("click", () => {
-    onImageOpen(cardInfo);
+  imageNode.addEventListener("click", () => {
+    onZoom(placeData);
   });
 
-  return cardNode;
+  return placeNode;
 };
