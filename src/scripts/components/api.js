@@ -1,53 +1,52 @@
 const GROUP_ID = "";
 const TOKEN = "";
 
-const apiConfig = {
-  baseUrl: `https://mesto.nomoreparties.co/v1/${GROUP_ID}`,
-  headers: {
-    authorization: TOKEN,
-    "Content-Type": "application/json",
-  },
+const API_BASE = `https://mesto.nomoreparties.co/v1/${GROUP_ID}`;
+
+const defaultHeaders = {
+  authorization: TOKEN,
+  "Content-Type": "application/json",
 };
 
-const parseResponse = (response) => {
+const jsonFromResponse = (response) => {
   if (response.ok) {
     return response.json();
   }
   return Promise.reject(`Ошибка: ${response.status}`);
 };
 
-const callApi = (endpoint, requestInit = {}) =>
-  fetch(`${apiConfig.baseUrl}${endpoint}`, {
-    headers: apiConfig.headers,
-    ...requestInit,
-  }).then(parseResponse);
+const doFetch = (path, options = {}) =>
+  fetch(`${API_BASE}${path}`, {
+    headers: defaultHeaders,
+    ...options,
+  }).then(jsonFromResponse);
 
-export const requestUserInfo = () => callApi("/users/me");
+export const readProfile = () => doFetch("/users/me");
 
-export const requestCardsData = () => callApi("/cards");
+export const readAllPlaces = () => doFetch("/cards");
 
-export const updateUserInfo = ({ name, about }) =>
-  callApi("/users/me", {
+export const patchProfileData = ({ name, about }) =>
+  doFetch("/users/me", {
     method: "PATCH",
     body: JSON.stringify({ name, about }),
   });
 
-export const updateUserAvatar = ({ avatar }) =>
-  callApi("/users/me/avatar", {
+export const patchProfilePhoto = ({ avatar }) =>
+  doFetch("/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify({ avatar }),
   });
 
-export const submitNewCard = ({ name, link }) =>
-  callApi("/cards", {
+export const addPlace = ({ name, link }) =>
+  doFetch("/cards", {
     method: "POST",
     body: JSON.stringify({ name, link }),
   });
 
-export const requestDeleteCard = (cardId) =>
-  callApi(`/cards/${cardId}`, { method: "DELETE" });
+export const removePlace = (placeId) =>
+  doFetch(`/cards/${placeId}`, { method: "DELETE" });
 
-export const requestLikeToggle = (cardId, likedByMe) =>
-  callApi(`/cards/likes/${cardId}`, {
-    method: likedByMe ? "DELETE" : "PUT",
+export const flipPlaceLike = (placeId, alreadyLiked) =>
+  doFetch(`/cards/likes/${placeId}`, {
+    method: alreadyLiked ? "DELETE" : "PUT",
   });
