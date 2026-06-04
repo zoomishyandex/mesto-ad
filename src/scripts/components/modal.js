@@ -1,38 +1,38 @@
-let keyupListener = null;
+let escapeListener = null;
 
-const handleEscapeKey = (event) => {
-  if (event.key !== "Escape") {
+const onDocumentKeyup = (evt) => {
+  if (evt.key === "Escape") {
+    const opened = document.querySelector(".popup_is-opened");
+    hideOverlay(opened);
+  }
+};
+
+export const showOverlay = (overlay) => {
+  overlay.classList.add("popup_is-opened");
+  escapeListener = onDocumentKeyup;
+  document.addEventListener("keyup", escapeListener);
+};
+
+export const hideOverlay = (overlay) => {
+  if (!overlay) {
     return;
   }
-  const activePopup = document.querySelector(".popup_is-opened");
-  dismissPopup(activePopup);
+  overlay.classList.remove("popup_is-opened");
+  document.removeEventListener("keyup", escapeListener);
+  escapeListener = null;
 };
 
-export const revealPopup = (popupNode) => {
-  popupNode.classList.add("popup_is-opened");
-  keyupListener = handleEscapeKey;
-  document.addEventListener("keyup", keyupListener);
-};
+export const wireOverlayDismiss = (overlay) => {
+  const closeTrigger = overlay.querySelector(".popup__close");
 
-export const dismissPopup = (popupNode) => {
-  if (!popupNode) {
-    return;
-  }
-  popupNode.classList.remove("popup_is-opened");
-  document.removeEventListener("keyup", keyupListener);
-  keyupListener = null;
-};
-
-export const bindPopupClosing = (popupNode) => {
-  const closeBtn = popupNode.querySelector(".popup__close");
-
-  closeBtn.addEventListener("click", () => {
-    dismissPopup(popupNode);
+  closeTrigger.addEventListener("click", () => {
+    hideOverlay(overlay);
   });
 
-  popupNode.addEventListener("mousedown", (event) => {
-    if (event.target === popupNode) {
-      dismissPopup(popupNode);
+  overlay.addEventListener("mousedown", (evt) => {
+    const isBackdrop = evt.target.classList.contains("popup");
+    if (isBackdrop) {
+      hideOverlay(overlay);
     }
   });
 };

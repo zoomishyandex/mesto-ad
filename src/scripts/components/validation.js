@@ -1,85 +1,80 @@
-function attachError(formNode, field, text, settings) {
-  const hint = formNode.querySelector(`#${field.id}-error`);
-  hint.textContent = text;
-  hint.classList.add(settings.errorClass);
-  field.classList.add(settings.inputErrorClass);
+function showInputError(formEl, inputEl, message, config) {
+  const errorEl = formEl.querySelector(`#${inputEl.id}-error`);
+  errorEl.textContent = message;
+  errorEl.classList.add(config.errorClass);
+  inputEl.classList.add(config.inputErrorClass);
 }
 
-function detachError(formNode, field, settings) {
-  const hint = formNode.querySelector(`#${field.id}-error`);
-  hint.textContent = "";
-  hint.classList.remove(settings.errorClass);
-  field.classList.remove(settings.inputErrorClass);
+function hideInputError(formEl, inputEl, config) {
+  const errorEl = formEl.querySelector(`#${inputEl.id}-error`);
+  errorEl.textContent = "";
+  errorEl.classList.remove(config.errorClass);
+  inputEl.classList.remove(config.inputErrorClass);
 }
 
-function checkField(formNode, field, settings) {
-  if (field.validity.patternMismatch && field.dataset.errorMessage) {
-    field.setCustomValidity(field.dataset.errorMessage);
+function validateInput(formEl, inputEl, config) {
+  if (inputEl.validity.patternMismatch && inputEl.dataset.errorMessage) {
+    inputEl.setCustomValidity(inputEl.dataset.errorMessage);
   } else {
-    field.setCustomValidity("");
+    inputEl.setCustomValidity("");
   }
 
-  if (!field.validity.valid) {
-    attachError(formNode, field, field.validationMessage, settings);
+  if (!inputEl.validity.valid) {
+    showInputError(formEl, inputEl, inputEl.validationMessage, config);
     return;
   }
 
-  detachError(formNode, field, settings);
+  hideInputError(formEl, inputEl, config);
 }
 
-function hasInvalidFields(formNode, settings) {
-  const fields = formNode.querySelectorAll(settings.inputSelector);
-  for (const field of fields) {
-    if (!field.validity.valid) {
-      return true;
-    }
-  }
-  return false;
+function isFormInvalid(formEl, config) {
+  const inputs = Array.from(formEl.querySelectorAll(config.inputSelector));
+  return inputs.some((inputEl) => !inputEl.validity.valid);
 }
 
-function lockSubmit(formNode, settings) {
-  const btn = formNode.querySelector(settings.submitButtonSelector);
-  btn.disabled = true;
-  btn.classList.add(settings.inactiveButtonClass);
+function disableSubmit(formEl, config) {
+  const submitEl = formEl.querySelector(config.submitButtonSelector);
+  submitEl.disabled = true;
+  submitEl.classList.add(config.inactiveButtonClass);
 }
 
-function unlockSubmit(formNode, settings) {
-  const btn = formNode.querySelector(settings.submitButtonSelector);
-  btn.disabled = false;
-  btn.classList.remove(settings.inactiveButtonClass);
+function enableSubmit(formEl, config) {
+  const submitEl = formEl.querySelector(config.submitButtonSelector);
+  submitEl.disabled = false;
+  submitEl.classList.remove(config.inactiveButtonClass);
 }
 
-function refreshSubmitState(formNode, settings) {
-  if (hasInvalidFields(formNode, settings)) {
-    lockSubmit(formNode, settings);
+function toggleSubmitAvailability(formEl, config) {
+  if (isFormInvalid(formEl, config)) {
+    disableSubmit(formEl, config);
   } else {
-    unlockSubmit(formNode, settings);
+    enableSubmit(formEl, config);
   }
 }
 
-function hookFormFields(formNode, settings) {
-  const fields = formNode.querySelectorAll(settings.inputSelector);
-  for (const field of fields) {
-    field.addEventListener("input", () => {
-      checkField(formNode, field, settings);
-      refreshSubmitState(formNode, settings);
+function bindInputListeners(formEl, config) {
+  const inputs = formEl.querySelectorAll(config.inputSelector);
+  inputs.forEach((inputEl) => {
+    inputEl.addEventListener("input", () => {
+      validateInput(formEl, inputEl, config);
+      toggleSubmitAvailability(formEl, config);
     });
-  }
+  });
 }
 
-export function clearValidation(formNode, settings) {
-  const fields = formNode.querySelectorAll(settings.inputSelector);
-  for (const field of fields) {
-    field.setCustomValidity("");
-    detachError(formNode, field, settings);
-  }
-  lockSubmit(formNode, settings);
+export function clearValidation(formEl, config) {
+  const inputs = formEl.querySelectorAll(config.inputSelector);
+  inputs.forEach((inputEl) => {
+    inputEl.setCustomValidity("");
+    hideInputError(formEl, inputEl, config);
+  });
+  disableSubmit(formEl, config);
 }
 
-export function enableValidation(settings) {
-  const forms = document.querySelectorAll(settings.formSelector);
-  for (const formNode of forms) {
-    hookFormFields(formNode, settings);
-    refreshSubmitState(formNode, settings);
-  }
+export function enableValidation(config) {
+  const forms = document.querySelectorAll(config.formSelector);
+  forms.forEach((formEl) => {
+    bindInputListeners(formEl, config);
+    toggleSubmitAvailability(formEl, config);
+  });
 }

@@ -1,40 +1,44 @@
-import { renderPlaceCard, dropPlaceCard, syncLikeButton } from "./components/card.js";
-import { revealPopup, dismissPopup, bindPopupClosing } from "./components/modal.js";
+import {
+  buildGalleryItem,
+  detachGalleryItem,
+  updateHeartState,
+} from "./components/card.js";
+import { showOverlay, hideOverlay, wireOverlayDismiss } from "./components/modal.js";
 import { enableValidation, clearValidation } from "./components/validation.js";
 import {
-  readProfile,
-  readAllPlaces,
-  patchProfileData,
-  patchProfilePhoto,
-  addPlace,
-  removePlace,
-  flipPlaceLike,
+  getMeProfile,
+  fetchGallery,
+  saveMeDetails,
+  saveMePicture,
+  publishCard,
+  eraseCardById,
+  toggleCardLike,
 } from "./components/api.js";
 
-const placeList = document.querySelector(".places__list");
+const galleryContainer = document.querySelector(".places__list");
 
-const editPopup = document.querySelector(".popup_type_edit");
-const editForm = editPopup.querySelector(".popup__form");
-const editNameField = editForm.querySelector(".popup__input_type_name");
-const editAboutField = editForm.querySelector(".popup__input_type_description");
+const profileOverlay = document.querySelector(".popup_type_edit");
+const profileForm = profileOverlay.querySelector(".popup__form");
+const nameInput = profileForm.querySelector(".popup__input_type_name");
+const aboutInput = profileForm.querySelector(".popup__input_type_description");
 
-const addPopup = document.querySelector(".popup_type_new-card");
-const addForm = addPopup.querySelector(".popup__form");
-const placeNameField = addForm.querySelector(".popup__input_type_card-name");
-const placeLinkField = addForm.querySelector(".popup__input_type_url");
+const newCardOverlay = document.querySelector(".popup_type_new-card");
+const newCardForm = newCardOverlay.querySelector(".popup__form");
+const cardTitleInput = newCardForm.querySelector(".popup__input_type_card-name");
+const cardUrlInput = newCardForm.querySelector(".popup__input_type_url");
 
-const zoomPopup = document.querySelector(".popup_type_image");
-const zoomImage = zoomPopup.querySelector(".popup__image");
-const zoomCaption = zoomPopup.querySelector(".popup__caption");
+const imageOverlay = document.querySelector(".popup_type_image");
+const fullImage = imageOverlay.querySelector(".popup__image");
+const imageCaption = imageOverlay.querySelector(".popup__caption");
 
-const editProfileBtn = document.querySelector(".profile__edit-button");
-const addPlaceBtn = document.querySelector(".profile__add-button");
+const editBtn = document.querySelector(".profile__edit-button");
+const addCardBtn = document.querySelector(".profile__add-button");
 
-const profileTitle = document.querySelector(".profile__title");
-const profileAbout = document.querySelector(".profile__description");
-const profileAvatar = document.querySelector(".profile__image");
+const nameDisplay = document.querySelector(".profile__title");
+const aboutDisplay = document.querySelector(".profile__description");
+const avatarDisplay = document.querySelector(".profile__image");
 
-const formSettings = {
+const validationSettings = {
   formSelector: ".popup__form",
   inputSelector: ".popup__input",
   submitButtonSelector: ".popup__button",
@@ -43,209 +47,214 @@ const formSettings = {
   errorClass: "popup__error_visible",
 };
 
-const avatarPopup = document.querySelector(".popup_type_edit-avatar");
-const avatarForm = avatarPopup.querySelector(".popup__form");
-const avatarUrlField = avatarForm.querySelector(".popup__input_type_avatar");
+const avatarOverlay = document.querySelector(".popup_type_edit-avatar");
+const avatarForm = avatarOverlay.querySelector(".popup__form");
+const avatarInput = avatarForm.querySelector(".popup__input_type_avatar");
 
-const factsPopup = document.querySelector(".popup_type_info");
-const factsList = factsPopup.querySelector(".popup__list_type_definitions");
-const likersList = factsPopup.querySelector(".popup__list_type_users");
-const factRowTemplate = document.querySelector("#popup-info-definition-template").content;
-const likerBadgeTemplate = document.querySelector("#popup-info-user-preview-template").content;
+const statsOverlay = document.querySelector(".popup_type_info");
+const statsDefinitions = statsOverlay.querySelector(".popup__list_type_definitions");
+const statsLikers = statsOverlay.querySelector(".popup__list_type_users");
+const definitionTpl = document.querySelector("#popup-info-definition-template").content;
+const likerTpl = document.querySelector("#popup-info-user-preview-template").content;
 
-const allPopups = document.querySelectorAll(".popup");
+const overlayNodes = document.querySelectorAll(".popup");
 
-let viewerId = "";
+let myUserId = "";
 
-const logApiFailure = (error) => {
-  console.log(error);
+const handleRequestError = (err) => {
+  console.log(err);
 };
 
-const toRussianDate = (rawDate) =>
-  rawDate.toLocaleDateString("ru-RU", {
+const formatDateRu = (dateObj) =>
+  dateObj.toLocaleDateString("ru-RU", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-const swapButtonText = (button, busy, busyText) => {
-  if (!button.dataset.savedLabel) {
-    button.dataset.savedLabel = button.textContent;
+const setSubmitLoading = (submitEl, loading, loadingText) => {
+  if (!submitEl.dataset.savedLabel) {
+    submitEl.dataset.savedLabel = submitEl.textContent;
   }
-  button.textContent = busy ? busyText : button.dataset.savedLabel;
+  submitEl.textContent = loading ? loadingText : submitEl.dataset.savedLabel;
 };
 
-const fillProfileBar = (profile) => {
-  profileTitle.textContent = profile.name;
-  profileAbout.textContent = profile.about;
-  profileAvatar.style.backgroundImage = `url(${profile.avatar})`;
-  viewerId = profile._id;
+const applyProfileToDom = (userData) => {
+  nameDisplay.textContent = userData.name;
+  aboutDisplay.textContent = userData.about;
+  avatarDisplay.style.backgroundImage = `url(${userData.avatar})`;
+  myUserId = userData._id;
 };
 
-const openZoom = (placeData) => {
-  zoomImage.src = placeData.link;
-  zoomImage.alt = placeData.name;
-  zoomCaption.textContent = placeData.name;
-  revealPopup(zoomPopup);
+const openImagePreview = (cardData) => {
+  fullImage.src = cardData.link;
+  fullImage.alt = cardData.name;
+  imageCaption.textContent = cardData.name;
+  showOverlay(imageOverlay);
 };
 
-const makeFactRow = (label, value) => {
-  const row = factRowTemplate.querySelector(".popup__list-item").cloneNode(true);
-  row.querySelector(".popup__info-term").textContent = label;
-  row.querySelector(".popup__info-item").textContent = value;
-  return row;
+const createDefinitionItem = (term, value) => {
+  const item = definitionTpl.querySelector(".popup__list-item").cloneNode(true);
+  item.querySelector(".popup__info-term").textContent = term;
+  item.querySelector(".popup__info-item").textContent = value;
+  return item;
 };
 
-const makeLikerBadge = (name) => {
-  const badge = likerBadgeTemplate
-    .querySelector(".popup__list-item_type_badge")
-    .cloneNode(true);
-  badge.textContent = name;
-  return badge;
+const createLikerChip = (userName) => {
+  const chip = likerTpl.querySelector(".popup__list-item_type_badge").cloneNode(true);
+  chip.textContent = userName;
+  return chip;
 };
 
-const openFactsPopup = (placeId) => {
-  readAllPlaces()
-    .then((places) => {
-      const target = places.find((item) => item._id === placeId);
-      if (!target) {
+const openCardStats = (cardId) => {
+  fetchGallery()
+    .then((cards) => {
+      const card = cards.find((item) => item._id === cardId);
+      if (!card) {
         return;
       }
 
-      factsList.replaceChildren(
-        makeFactRow("Описание:", target.name),
-        makeFactRow("Дата создания:", toRussianDate(new Date(target.createdAt))),
-        makeFactRow("Владелец:", target.owner.name),
-        makeFactRow("Количество лайков:", String(target.likes.length))
+      statsDefinitions.replaceChildren(
+        createDefinitionItem("Описание:", card.name),
+        createDefinitionItem(
+          "Дата создания:",
+          formatDateRu(new Date(card.createdAt))
+        ),
+        createDefinitionItem("Владелец:", card.owner.name),
+        createDefinitionItem("Количество лайков:", String(card.likes.length))
       );
 
-      if (target.likes.length === 0) {
-        likersList.replaceChildren(makeLikerBadge("Пока никто не лайкнул"));
+      if (card.likes.length === 0) {
+        statsLikers.replaceChildren(createLikerChip("Пока никто не лайкнул"));
       } else {
-        likersList.replaceChildren(
-          ...target.likes.map((user) => makeLikerBadge(user.name))
+        statsLikers.replaceChildren(
+          ...card.likes.map((liker) => createLikerChip(liker.name))
         );
       }
 
-      revealPopup(factsPopup);
+      showOverlay(statsOverlay);
     })
-    .catch(logApiFailure);
+    .catch(handleRequestError);
 };
 
-const onHeartClick = ({ placeId, alreadyLiked, likeBtn, countNode }) => {
-  flipPlaceLike(placeId, alreadyLiked)
-    .then((updated) => {
-      syncLikeButton(updated, likeBtn, countNode, viewerId);
+const handleHeartClick = ({ cardId, isLiked, heartBtn, counterEl }) => {
+  toggleCardLike(cardId, isLiked)
+    .then((updatedCard) => {
+      updateHeartState(updatedCard, heartBtn, counterEl, myUserId);
     })
-    .catch(logApiFailure);
+    .catch(handleRequestError);
 };
 
-const onRemoveClick = ({ placeId, placeNode }) => {
-  removePlace(placeId)
+const handleEraseClick = ({ cardId, cardEl }) => {
+  eraseCardById(cardId)
     .then(() => {
-      dropPlaceCard(placeNode);
+      detachGalleryItem(cardEl);
     })
-    .catch(logApiFailure);
+    .catch(handleRequestError);
 };
 
-const appendPlace = (placeData, toTop = false) => {
-  const placeNode = renderPlaceCard(placeData, viewerId, {
-    onZoom: openZoom,
-    onHeart: onHeartClick,
-    onRemove: onRemoveClick,
-    onFacts: openFactsPopup,
+const mountGalleryItem = (cardData, prepend = false) => {
+  const cardEl = buildGalleryItem(cardData, myUserId, {
+    onPreview: openImagePreview,
+    onHeart: handleHeartClick,
+    onErase: handleEraseClick,
+    onStats: openCardStats,
   });
 
-  if (toTop) {
-    placeList.prepend(placeNode);
+  if (prepend) {
+    galleryContainer.prepend(cardEl);
     return;
   }
 
-  placeList.append(placeNode);
+  galleryContainer.append(cardEl);
 };
 
-const withBusyButton = (button, busyText, promise) => {
-  swapButtonText(button, true, busyText);
-  return promise.catch(logApiFailure).finally(() => {
-    swapButtonText(button, false);
+const runSubmitWithLoading = (submitEl, loadingText, task) => {
+  setSubmitLoading(submitEl, true, loadingText);
+  return task.catch(handleRequestError).finally(() => {
+    setSubmitLoading(submitEl, false);
   });
 };
 
-editForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+profileForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const submitEl = evt.submitter;
+  runSubmitWithLoading(
+    submitEl,
     "Сохранение...",
-    patchProfileData({
-      name: editNameField.value,
-      about: editAboutField.value,
-    }).then((profile) => {
-      fillProfileBar(profile);
-      dismissPopup(editPopup);
+    saveMeDetails({
+      name: nameInput.value,
+      about: aboutInput.value,
+    }).then((userData) => {
+      applyProfileToDom(userData);
+      hideOverlay(profileOverlay);
     })
   );
 });
 
-avatarForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+avatarForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const submitEl = evt.submitter;
+  runSubmitWithLoading(
+    submitEl,
     "Сохранение...",
-    patchProfilePhoto({ avatar: avatarUrlField.value }).then((profile) => {
-      fillProfileBar(profile);
-      dismissPopup(avatarPopup);
+    saveMePicture({ avatar: avatarInput.value }).then((userData) => {
+      applyProfileToDom(userData);
+      hideOverlay(avatarOverlay);
     })
   );
 });
 
-addForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+newCardForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const submitEl = evt.submitter;
+  runSubmitWithLoading(
+    submitEl,
     "Создание...",
-    addPlace({
-      name: placeNameField.value,
-      link: placeLinkField.value,
-    }).then((placeData) => {
-      appendPlace(placeData, true);
-      dismissPopup(addPopup);
+    publishCard({
+      name: cardTitleInput.value,
+      link: cardUrlInput.value,
+    }).then((cardData) => {
+      mountGalleryItem(cardData, true);
+      hideOverlay(newCardOverlay);
     })
   );
 });
 
-editProfileBtn.addEventListener("click", () => {
-  editNameField.value = profileTitle.textContent;
-  editAboutField.value = profileAbout.textContent;
-  clearValidation(editForm, formSettings);
-  revealPopup(editPopup);
+editBtn.addEventListener("click", () => {
+  nameInput.value = nameDisplay.textContent;
+  aboutInput.value = aboutDisplay.textContent;
+  clearValidation(profileForm, validationSettings);
+  showOverlay(profileOverlay);
 });
 
-profileAvatar.addEventListener("click", () => {
+avatarDisplay.addEventListener("click", () => {
   avatarForm.reset();
-  clearValidation(avatarForm, formSettings);
-  revealPopup(avatarPopup);
+  clearValidation(avatarForm, validationSettings);
+  showOverlay(avatarOverlay);
 });
 
-addPlaceBtn.addEventListener("click", () => {
-  addForm.reset();
-  clearValidation(addForm, formSettings);
-  revealPopup(addPopup);
+addCardBtn.addEventListener("click", () => {
+  newCardForm.reset();
+  clearValidation(newCardForm, validationSettings);
+  showOverlay(newCardOverlay);
 });
 
-for (const popupNode of allPopups) {
-  bindPopupClosing(popupNode);
-}
+overlayNodes.forEach((overlay) => {
+  wireOverlayDismiss(overlay);
+});
 
-enableValidation(formSettings);
+enableValidation(validationSettings);
 
-Promise.all([readAllPlaces(), readProfile()])
-  .then(([places, profile]) => {
-    fillProfileBar(profile);
-    for (const placeData of places) {
-      appendPlace(placeData);
-    }
-  })
-  .catch(logApiFailure);
+const bootstrap = () => {
+  Promise.all([fetchGallery(), getMeProfile()])
+    .then(([cards, userData]) => {
+      applyProfileToDom(userData);
+      cards.forEach((cardData) => {
+        mountGalleryItem(cardData);
+      });
+    })
+    .catch(handleRequestError);
+};
+
+bootstrap();
