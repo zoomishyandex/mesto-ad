@@ -1,52 +1,49 @@
 const GROUP_ID = "";
 const TOKEN = "";
 
-const API_BASE = `https://mesto.nomoreparties.co/v1/${GROUP_ID}`;
-
-const defaultHeaders = {
-  authorization: TOKEN,
-  "Content-Type": "application/json",
+const cohortSettings = {
+  root: `https://mesto.nomoreparties.co/v1/${GROUP_ID}`,
+  headers: {
+    authorization: TOKEN,
+    "Content-Type": "application/json",
+  },
 };
 
-const jsonFromResponse = (response) => {
-  if (response.ok) {
-    return response.json();
-  }
-  return Promise.reject(`Ошибка: ${response.status}`);
-};
+const unwrapJson = (res) =>
+  res.ok ? res.json() : Promise.reject(`Ошибка: ${res.status}`);
 
-const doFetch = (path, options = {}) =>
-  fetch(`${API_BASE}${path}`, {
-    headers: defaultHeaders,
-    ...options,
-  }).then(jsonFromResponse);
+const mestoRequest = (resource, init = {}) =>
+  fetch(`${cohortSettings.root}${resource}`, {
+    headers: cohortSettings.headers,
+    ...init,
+  }).then(unwrapJson);
 
-export const readProfile = () => doFetch("/users/me");
+export const getMeProfile = () => mestoRequest("/users/me");
 
-export const readAllPlaces = () => doFetch("/cards");
+export const fetchGallery = () => mestoRequest("/cards");
 
-export const patchProfileData = ({ name, about }) =>
-  doFetch("/users/me", {
+export const saveMeDetails = ({ name, about }) =>
+  mestoRequest("/users/me", {
     method: "PATCH",
     body: JSON.stringify({ name, about }),
   });
 
-export const patchProfilePhoto = ({ avatar }) =>
-  doFetch("/users/me/avatar", {
+export const saveMePicture = ({ avatar }) =>
+  mestoRequest("/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify({ avatar }),
   });
 
-export const addPlace = ({ name, link }) =>
-  doFetch("/cards", {
+export const publishCard = ({ name, link }) =>
+  mestoRequest("/cards", {
     method: "POST",
     body: JSON.stringify({ name, link }),
   });
 
-export const removePlace = (placeId) =>
-  doFetch(`/cards/${placeId}`, { method: "DELETE" });
+export const eraseCardById = (cardId) =>
+  mestoRequest(`/cards/${cardId}`, { method: "DELETE" });
 
-export const flipPlaceLike = (placeId, alreadyLiked) =>
-  doFetch(`/cards/likes/${placeId}`, {
-    method: alreadyLiked ? "DELETE" : "PUT",
+export const toggleCardLike = (cardId, isLiked) =>
+  mestoRequest(`/cards/likes/${cardId}`, {
+    method: isLiked ? "DELETE" : "PUT",
   });
