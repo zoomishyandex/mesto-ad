@@ -1,10 +1,3 @@
-const nameAndTitlePattern = /^[A-Za-zА-Яа-яЁё\s-]+$/;
-
-const usesRestrictedSymbols = (input, settings) => {
-  const classes = settings.lettersOnlyClassList || [];
-  return classes.some((className) => input.classList.contains(className));
-};
-
 const showInputError = (form, input, message, settings) => {
   const errorElement = form.querySelector(`#${input.id}-error`);
   errorElement.textContent = message;
@@ -20,14 +13,7 @@ const hideInputError = (form, input, settings) => {
 };
 
 const checkInputValidity = (form, input, settings) => {
-  if (usesRestrictedSymbols(input, settings)) {
-    const message = input.dataset.errorMessage || settings.lettersOnlyMessage;
-    if (!nameAndTitlePattern.test(input.value)) {
-      input.setCustomValidity(message);
-    } else {
-      input.setCustomValidity("");
-    }
-  } else if (input.validity.patternMismatch && input.dataset.errorMessage) {
+  if (input.validity.patternMismatch && input.dataset.errorMessage) {
     input.setCustomValidity(input.dataset.errorMessage);
   } else {
     input.setCustomValidity("");

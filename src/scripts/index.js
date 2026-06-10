@@ -45,9 +45,6 @@ const formSettings = {
   inactiveButtonClass: "popup__button_disabled",
   inputErrorClass: "popup__input_type_error",
   errorClass: "popup__error_visible",
-  lettersOnlyClassList: ["popup__input_type_name", "popup__input_type_card-name"],
-  lettersOnlyMessage:
-    "Разрешены только латинские, кириллические буквы, знаки дефиса и пробелы",
 };
 
 const changeAvatarPopup = document.querySelector(".popup_type_edit-avatar");
