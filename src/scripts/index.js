@@ -38,16 +38,13 @@ const headerName = document.querySelector(".profile__title");
 const headerAbout = document.querySelector(".profile__description");
 const headerAvatar = document.querySelector(".profile__image");
 
-const formRules = {
+const validationConfig = {
   formSelector: ".popup__form",
   inputSelector: ".popup__input",
   submitButtonSelector: ".popup__button",
   inactiveButtonClass: "popup__button_disabled",
   inputErrorClass: "popup__input_type_error",
   errorClass: "popup__error_visible",
-  lettersOnlyClassList: ["popup__input_type_name", "popup__input_type_card-name"],
-  lettersOnlyMessage:
-    "Разрешены только латинские, кириллические буквы, знаки дефиса и пробелы",
 };
 
 const avatarWindow = document.querySelector(".popup_type_edit-avatar");
@@ -227,19 +224,19 @@ galleryItemForm.addEventListener("submit", (event) => {
 userEditTrigger.addEventListener("click", () => {
   userNameField.value = headerName.textContent;
   userAboutField.value = headerAbout.textContent;
-  clearValidation(userForm, formRules);
+  clearValidation(userForm, validationConfig);
   showWindow(userWindow);
 });
 
 headerAvatar.addEventListener("click", () => {
   avatarForm.reset();
-  clearValidation(avatarForm, formRules);
+  clearValidation(avatarForm, validationConfig);
   showWindow(avatarWindow);
 });
 
 galleryAddTrigger.addEventListener("click", () => {
   galleryItemForm.reset();
-  clearValidation(galleryItemForm, formRules);
+  clearValidation(galleryItemForm, validationConfig);
   showWindow(galleryItemWindow);
 });
 
@@ -247,7 +244,7 @@ windowCollection.forEach((windowElement) => {
   initWindowClosing(windowElement);
 });
 
-enableValidation(formRules);
+enableValidation(validationConfig);
 
 Promise.all([readGallery(), readProfile()])
   .then(([items, profile]) => {
