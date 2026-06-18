@@ -1,64 +1,61 @@
-const copyGalleryTemplate = () =>
-  document
-    .getElementById("card-template")
-    .content.querySelector(".card")
-    .cloneNode(true);
+const takeCardTemplate = () =>
+  document.getElementById("card-template").content.querySelector(".card").cloneNode(true);
 
-export const updateLikesUi = (item, likeButton, likesNumber, loggedInUserId) => {
-  const hasLike = item.likes.some((member) => member._id === loggedInUserId);
-  likeButton.classList.toggle("card__like-button_is-active", hasLike);
-  likesNumber.textContent = item.likes.length;
+export const applyLikeUi = (cardData, likeBtn, countEl, ownerId) => {
+  const likedByMe = cardData.likes.some((user) => user._id === ownerId);
+  likeBtn.classList.toggle("card__like-button_is-active", likedByMe);
+  countEl.textContent = cardData.likes.length;
 };
 
-export const dropGalleryItem = (itemElement) => {
-  itemElement.remove();
+export const removeCardNode = (cardNode) => {
+  cardNode.remove();
 };
 
-export const renderGalleryItem = (
-  item,
-  loggedInUserId,
-  { showFullscreen, toggleLike, removeItem, openStatistics }
+export const makeCardNode = (
+  cardData,
+  ownerId,
+  { onPreview, onLike, onDelete, onInfo }
 ) => {
-  const itemElement = copyGalleryTemplate();
-  const likeButton = itemElement.querySelector(".card__like-button");
-  const likesNumber = itemElement.querySelector(".card__like-count");
-  const removeButton = itemElement.querySelector(".card__control-button_type_delete");
-  const statisticsButton = itemElement.querySelector(".card__control-button_type_info");
-  const picture = itemElement.querySelector(".card__image");
+  const cardNode = takeCardTemplate();
+  const likeBtn = cardNode.querySelector(".card__like-button");
+  const countEl = cardNode.querySelector(".card__like-count");
+  const deleteBtn = cardNode.querySelector(".card__control-button_type_delete");
+  const infoBtn = cardNode.querySelector(".card__control-button_type_info");
+  const imageEl = cardNode.querySelector(".card__image");
 
-  picture.src = item.link;
-  picture.alt = item.name;
-  itemElement.querySelector(".card__title").textContent = item.name;
-  updateLikesUi(item, likeButton, likesNumber, loggedInUserId);
+  imageEl.src = cardData.link;
+  imageEl.alt = cardData.name;
+  cardNode.querySelector(".card__title").textContent = cardData.name;
+  applyLikeUi(cardData, likeBtn, countEl, ownerId);
 
-  const isOwnedByUser = item.owner._id === loggedInUserId;
-  if (!isOwnedByUser) {
-    removeButton.remove();
+  const isOwner = cardData.owner._id === ownerId;
+  if (!isOwner) {
+    deleteBtn.remove();
   }
 
-  likeButton.addEventListener("click", () => {
-    const userHasLike = likeButton.classList.contains("card__like-button_is-active");
-    toggleLike({
-      itemId: item._id,
-      userHasLike,
-      likeButton,
-      likesNumber,
+  likeBtn.addEventListener("click", () => {
+    const isLiked = likeBtn.classList.contains("card__like-button_is-active");
+    onLike({
+      cardId: cardData._id,
+      isLiked,
+      likeBtn,
+      countEl,
     });
   });
 
-  if (isOwnedByUser) {
-    removeButton.addEventListener("click", () => {
-      removeItem({ itemId: item._id, itemElement });
+  if (isOwner) {
+    deleteBtn.addEventListener("click", () => {
+      onDelete({ cardId: cardData._id, cardNode });
     });
   }
 
-  statisticsButton.addEventListener("click", () => {
-    openStatistics(item._id);
+  infoBtn.addEventListener("click", () => {
+    onInfo(cardData._id);
   });
 
-  picture.addEventListener("click", () => {
-    showFullscreen(item);
+  imageEl.addEventListener("click", () => {
+    onPreview(cardData);
   });
 
-  return itemElement;
+  return cardNode;
 };
