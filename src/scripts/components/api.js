@@ -1,48 +1,48 @@
 const GROUP_ID = "";
 const TOKEN = "";
 
-const buildUrl = (resource) => `https://mesto.nomoreparties.co/v1/${GROUP_ID}${resource}`;
+const cohortUrl = (path) => `https://mesto.nomoreparties.co/v1/${GROUP_ID}${path}`;
 
-const sharedHeaders = () => ({
+const authHeaders = {
   authorization: TOKEN,
   "Content-Type": "application/json",
-});
+};
 
-const resolveBody = (response) =>
-  response.ok ? response.json() : Promise.reject(`Ошибка: ${response.status}`);
+const checkStatus = (res) =>
+  res.ok ? res.json() : Promise.reject(`Ошибка: ${res.status}`);
 
-const mestoFetch = (resource, init = {}) =>
-  fetch(buildUrl(resource), {
-    headers: sharedHeaders(),
-    ...init,
-  }).then(resolveBody);
+const request = (path, options = {}) =>
+  fetch(cohortUrl(path), {
+    headers: authHeaders,
+    ...options,
+  }).then(checkStatus);
 
-export const readProfile = () => mestoFetch("/users/me");
+export const fetchMe = () => request("/users/me");
 
-export const readGallery = () => mestoFetch("/cards");
+export const fetchCards = () => request("/cards");
 
-export const writeProfile = ({ name, about }) =>
-  mestoFetch("/users/me", {
+export const updateMe = ({ name, about }) =>
+  request("/users/me", {
     method: "PATCH",
     body: JSON.stringify({ name, about }),
   });
 
-export const writeAvatarImage = ({ avatar }) =>
-  mestoFetch("/users/me/avatar", {
+export const updateAvatar = ({ avatar }) =>
+  request("/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify({ avatar }),
   });
 
-export const createGalleryItem = ({ name, link }) =>
-  mestoFetch("/cards", {
+export const sendCard = ({ name, link }) =>
+  request("/cards", {
     method: "POST",
     body: JSON.stringify({ name, link }),
   });
 
-export const removeGalleryItem = (itemId) =>
-  mestoFetch(`/cards/${itemId}`, { method: "DELETE" });
+export const removeCard = (cardId) =>
+  request(`/cards/${cardId}`, { method: "DELETE" });
 
-export const switchLikeState = (itemId, userHasLike) =>
-  mestoFetch(`/cards/likes/${itemId}`, {
-    method: userHasLike ? "DELETE" : "PUT",
+export const changeLikeStatus = (cardId, isLiked) =>
+  request(`/cards/likes/${cardId}`, {
+    method: isLiked ? "DELETE" : "PUT",
   });

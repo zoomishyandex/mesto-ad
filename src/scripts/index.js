@@ -1,42 +1,38 @@
-import {
-  renderGalleryItem,
-  dropGalleryItem,
-  updateLikesUi,
-} from "./components/card.js";
-import { showWindow, hideWindow, initWindowClosing } from "./components/modal.js";
+import { makeCardNode, removeCardNode, applyLikeUi } from "./components/card.js";
+import { openPopup, closePopup, registerPopupListeners } from "./components/modal.js";
 import { enableValidation, clearValidation } from "./components/validation.js";
 import {
-  readProfile,
-  readGallery,
-  writeProfile,
-  writeAvatarImage,
-  createGalleryItem,
-  removeGalleryItem,
-  switchLikeState,
+  fetchMe,
+  fetchCards,
+  updateMe,
+  updateAvatar,
+  sendCard,
+  removeCard,
+  changeLikeStatus,
 } from "./components/api.js";
 
-const galleryContainer = document.querySelector(".places__list");
+const cardsGrid = document.querySelector(".places__list");
 
-const userWindow = document.querySelector(".popup_type_edit");
-const userForm = userWindow.querySelector(".popup__form");
-const userNameField = userForm.querySelector(".popup__input_type_name");
-const userAboutField = userForm.querySelector(".popup__input_type_description");
+const profilePopup = document.querySelector(".popup_type_edit");
+const profileForm = profilePopup.querySelector(".popup__form");
+const profileNameInput = profileForm.querySelector(".popup__input_type_name");
+const profileAboutInput = profileForm.querySelector(".popup__input_type_description");
 
-const galleryItemWindow = document.querySelector(".popup_type_new-card");
-const galleryItemForm = galleryItemWindow.querySelector(".popup__form");
-const galleryItemNameField = galleryItemForm.querySelector(".popup__input_type_card-name");
-const galleryItemLinkField = galleryItemForm.querySelector(".popup__input_type_url");
+const cardPopup = document.querySelector(".popup_type_new-card");
+const cardForm = cardPopup.querySelector(".popup__form");
+const cardNameInput = cardForm.querySelector(".popup__input_type_card-name");
+const cardLinkInput = cardForm.querySelector(".popup__input_type_url");
 
-const fullscreenWindow = document.querySelector(".popup_type_image");
-const fullscreenImage = fullscreenWindow.querySelector(".popup__image");
-const fullscreenCaption = fullscreenWindow.querySelector(".popup__caption");
+const imagePopup = document.querySelector(".popup_type_image");
+const imagePreview = imagePopup.querySelector(".popup__image");
+const imageCaption = imagePopup.querySelector(".popup__caption");
 
-const userEditTrigger = document.querySelector(".profile__edit-button");
-const galleryAddTrigger = document.querySelector(".profile__add-button");
+const editBtn = document.querySelector(".profile__edit-button");
+const addBtn = document.querySelector(".profile__add-button");
 
-const headerName = document.querySelector(".profile__title");
-const headerAbout = document.querySelector(".profile__description");
-const headerAvatar = document.querySelector(".profile__image");
+const profileNameEl = document.querySelector(".profile__title");
+const profileAboutEl = document.querySelector(".profile__description");
+const profileAvatarEl = document.querySelector(".profile__image");
 
 const validationConfig = {
   formSelector: ".popup__form",
@@ -47,210 +43,215 @@ const validationConfig = {
   errorClass: "popup__error_visible",
 };
 
-const avatarWindow = document.querySelector(".popup_type_edit-avatar");
-const avatarForm = avatarWindow.querySelector(".popup__form");
-const avatarLinkField = avatarForm.querySelector(".popup__input_type_avatar");
+const avatarPopup = document.querySelector(".popup_type_edit-avatar");
+const avatarForm = avatarPopup.querySelector(".popup__form");
+const avatarInput = avatarForm.querySelector(".popup__input_type_avatar");
 
-const statisticsWindow = document.querySelector(".popup_type_info");
-const statisticsDefinitions = statisticsWindow.querySelector(".popup__list_type_definitions");
-const statisticsUsers = statisticsWindow.querySelector(".popup__list_type_users");
-const statisticsDefinitionTemplate = document.querySelector(
-  "#popup-info-definition-template"
-).content;
-const statisticsUserTemplate = document.querySelector("#popup-info-user-preview-template")
-  .content;
+const infoPopup = document.querySelector(".popup_type_info");
+const infoDefinitions = infoPopup.querySelector(".popup__list_type_definitions");
+const infoLikers = infoPopup.querySelector(".popup__list_type_users");
+const infoRowTemplate = document.querySelector("#popup-info-definition-template").content;
+const likerTemplate = document.querySelector("#popup-info-user-preview-template").content;
 
-const windowCollection = document.querySelectorAll(".popup");
+const popupList = document.querySelectorAll(".popup");
 
-let loggedInUserId = "";
+let ownerId = "";
 
-const handleRequestFailure = () => {};
+const onApiError = (error) => {
+  console.log(error);
+};
 
-const formatLocaleDate = (date) =>
+const formatRuDate = (date) =>
   date.toLocaleDateString("ru-RU", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-const saveButtonCaption = (button) => {
-  if (!button.dataset.storedCaption) {
-    button.dataset.storedCaption = button.textContent;
+const rememberButtonLabel = (btn) => {
+  if (!btn.dataset.defaultLabel) {
+    btn.dataset.defaultLabel = btn.textContent;
   }
 };
 
-const setButtonLoading = (button, loading, loadingCaption) => {
-  saveButtonCaption(button);
-  button.textContent = loading ? loadingCaption : button.dataset.storedCaption;
+const setButtonBusy = (btn, busy, busyLabel) => {
+  rememberButtonLabel(btn);
+  btn.textContent = busy ? busyLabel : btn.dataset.defaultLabel;
 };
 
-const displayProfile = (profile) => {
-  headerName.textContent = profile.name;
-  headerAbout.textContent = profile.about;
-  headerAvatar.style.backgroundImage = `url(${profile.avatar})`;
-  loggedInUserId = profile._id;
+const paintProfile = (userData) => {
+  profileNameEl.textContent = userData.name;
+  profileAboutEl.textContent = userData.about;
+  profileAvatarEl.style.backgroundImage = `url(${userData.avatar})`;
+  ownerId = userData._id;
 };
 
-const openFullscreen = (item) => {
-  fullscreenImage.src = item.link;
-  fullscreenImage.alt = item.name;
-  fullscreenCaption.textContent = item.name;
-  showWindow(fullscreenWindow);
+const showImagePopup = (cardData) => {
+  imagePreview.src = cardData.link;
+  imagePreview.alt = cardData.name;
+  imageCaption.textContent = cardData.name;
+  openPopup(imagePopup);
 };
 
-const createDefinitionLine = (title, value) => {
-  const line = statisticsDefinitionTemplate.querySelector(".popup__list-item").cloneNode(true);
-  line.querySelector(".popup__info-term").textContent = title;
-  line.querySelector(".popup__info-item").textContent = value;
-  return line;
+const buildInfoRow = (term, value) => {
+  const row = infoRowTemplate.querySelector(".popup__list-item").cloneNode(true);
+  row.querySelector(".popup__info-term").textContent = term;
+  row.querySelector(".popup__info-item").textContent = value;
+  return row;
 };
 
-const createUserMark = (name) => {
-  const mark = statisticsUserTemplate
-    .querySelector(".popup__list-item_type_badge")
-    .cloneNode(true);
-  mark.textContent = name;
-  return mark;
+const buildLikerBadge = (name) => {
+  const badge = likerTemplate.querySelector(".popup__list-item_type_badge").cloneNode(true);
+  badge.textContent = name;
+  return badge;
 };
 
-const openStatistics = (itemId) => {
-  readGallery()
-    .then((items) => {
-      const target = items.find((item) => item._id === itemId);
-      if (!target) {
+const showCardInfo = (cardId) => {
+  fetchCards()
+    .then((cards) => {
+      const card = cards.find((item) => item._id === cardId);
+      if (!card) {
         return;
       }
 
-      statisticsDefinitions.replaceChildren(
-        createDefinitionLine("Описание:", target.name),
-        createDefinitionLine("Дата создания:", formatLocaleDate(new Date(target.createdAt))),
-        createDefinitionLine("Владелец:", target.owner.name),
-        createDefinitionLine("Количество лайков:", String(target.likes.length))
+      infoDefinitions.replaceChildren(
+        buildInfoRow("Описание:", card.name),
+        buildInfoRow("Дата создания:", formatRuDate(new Date(card.createdAt))),
+        buildInfoRow("Владелец:", card.owner.name),
+        buildInfoRow("Количество лайков:", String(card.likes.length))
       );
 
-      if (target.likes.length === 0) {
-        statisticsUsers.replaceChildren(createUserMark("Пока никто не лайкнул"));
+      if (card.likes.length === 0) {
+        infoLikers.replaceChildren(buildLikerBadge("Пока никто не лайкнул"));
       } else {
-        statisticsUsers.replaceChildren(
-          ...target.likes.map((member) => createUserMark(member.name))
+        infoLikers.replaceChildren(
+          ...card.likes.map((liker) => buildLikerBadge(liker.name))
         );
       }
 
-      showWindow(statisticsWindow);
+      openPopup(infoPopup);
     })
-    .catch(handleRequestFailure);
+    .catch(onApiError);
 };
 
-const onGalleryLike = ({ itemId, userHasLike, likeButton, likesNumber }) => {
-  switchLikeState(itemId, userHasLike)
-    .then((updatedItem) => {
-      updateLikesUi(updatedItem, likeButton, likesNumber, loggedInUserId);
+const handleLike = ({ cardId, isLiked, likeBtn, countEl }) => {
+  changeLikeStatus(cardId, isLiked)
+    .then((updatedCard) => {
+      applyLikeUi(updatedCard, likeBtn, countEl, ownerId);
     })
-    .catch(handleRequestFailure);
+    .catch(onApiError);
 };
 
-const onGalleryRemove = ({ itemId, itemElement }) => {
-  removeGalleryItem(itemId)
+const handleDelete = ({ cardId, cardNode }) => {
+  removeCard(cardId)
     .then(() => {
-      dropGalleryItem(itemElement);
+      removeCardNode(cardNode);
     })
-    .catch(handleRequestFailure);
+    .catch(onApiError);
 };
 
-const pushGalleryItem = (item, toStart = false) => {
-  const itemElement = renderGalleryItem(item, loggedInUserId, {
-    showFullscreen: openFullscreen,
-    toggleLike: onGalleryLike,
-    removeItem: onGalleryRemove,
-    openStatistics,
+const insertCard = (cardData, prepend = false) => {
+  const cardNode = makeCardNode(cardData, ownerId, {
+    onPreview: showImagePopup,
+    onLike: handleLike,
+    onDelete: handleDelete,
+    onInfo: showCardInfo,
   });
 
-  if (toStart) {
-    galleryContainer.prepend(itemElement);
+  if (prepend) {
+    cardsGrid.prepend(cardNode);
     return;
   }
 
-  galleryContainer.append(itemElement);
+  cardsGrid.append(cardNode);
 };
 
-const submitWithLoading = (button, loadingCaption, task) => {
-  setButtonLoading(button, true, loadingCaption);
-  return task()
-    .catch(handleRequestFailure)
-    .finally(() => {
-      setButtonLoading(button, false);
-    });
+const withLoadingButton = (btn, loadingLabel, promise) => {
+  setButtonBusy(btn, true, loadingLabel);
+  return promise.catch(onApiError).finally(() => {
+    setButtonBusy(btn, false);
+  });
 };
 
-userForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  submitWithLoading(button, "Сохранение...", () =>
-    writeProfile({
-      name: userNameField.value,
-      about: userAboutField.value,
-    }).then((profile) => {
-      displayProfile(profile);
-      hideWindow(userWindow);
+profileForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const btn = evt.submitter;
+  withLoadingButton(
+    btn,
+    "Сохранение...",
+    updateMe({
+      name: profileNameInput.value,
+      about: profileAboutInput.value,
+    }).then((userData) => {
+      paintProfile(userData);
+      closePopup(profilePopup);
     })
   );
 });
 
-avatarForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  submitWithLoading(button, "Сохранение...", () =>
-    writeAvatarImage({ avatar: avatarLinkField.value }).then((profile) => {
-      displayProfile(profile);
-      hideWindow(avatarWindow);
+avatarForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const btn = evt.submitter;
+  withLoadingButton(
+    btn,
+    "Сохранение...",
+    updateAvatar({ avatar: avatarInput.value }).then((userData) => {
+      paintProfile(userData);
+      closePopup(avatarPopup);
     })
   );
 });
 
-galleryItemForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const button = event.submitter;
-  submitWithLoading(button, "Создание...", () =>
-    createGalleryItem({
-      name: galleryItemNameField.value,
-      link: galleryItemLinkField.value,
-    }).then((item) => {
-      pushGalleryItem(item, true);
-      hideWindow(galleryItemWindow);
+cardForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const btn = evt.submitter;
+  withLoadingButton(
+    btn,
+    "Создание...",
+    sendCard({
+      name: cardNameInput.value,
+      link: cardLinkInput.value,
+    }).then((cardData) => {
+      insertCard(cardData, true);
+      closePopup(cardPopup);
     })
   );
 });
 
-userEditTrigger.addEventListener("click", () => {
-  userNameField.value = headerName.textContent;
-  userAboutField.value = headerAbout.textContent;
-  clearValidation(userForm, validationConfig);
-  showWindow(userWindow);
+editBtn.addEventListener("click", () => {
+  profileNameInput.value = profileNameEl.textContent;
+  profileAboutInput.value = profileAboutEl.textContent;
+  clearValidation(profileForm, validationConfig);
+  openPopup(profilePopup);
 });
 
-headerAvatar.addEventListener("click", () => {
+profileAvatarEl.addEventListener("click", () => {
   avatarForm.reset();
   clearValidation(avatarForm, validationConfig);
-  showWindow(avatarWindow);
+  openPopup(avatarPopup);
 });
 
-galleryAddTrigger.addEventListener("click", () => {
-  galleryItemForm.reset();
-  clearValidation(galleryItemForm, validationConfig);
-  showWindow(galleryItemWindow);
+addBtn.addEventListener("click", () => {
+  cardForm.reset();
+  clearValidation(cardForm, validationConfig);
+  openPopup(cardPopup);
 });
 
-windowCollection.forEach((windowElement) => {
-  initWindowClosing(windowElement);
+popupList.forEach((popup) => {
+  registerPopupListeners(popup);
 });
 
 enableValidation(validationConfig);
 
-Promise.all([readGallery(), readProfile()])
-  .then(([items, profile]) => {
-    displayProfile(profile);
-    items.forEach((item) => {
-      pushGalleryItem(item);
-    });
-  })
-  .catch(handleRequestFailure);
+const startApp = () => {
+  Promise.all([fetchCards(), fetchMe()])
+    .then(([cards, userData]) => {
+      paintProfile(userData);
+      cards.forEach((cardData) => {
+        insertCard(cardData);
+      });
+    })
+    .catch(onApiError);
+};
+
+startApp();
