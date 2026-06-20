@@ -1,61 +1,64 @@
-const takeCardTemplate = () =>
-  document.getElementById("card-template").content.querySelector(".card").cloneNode(true);
+const cloneCardMarkup = () =>
+  document
+    .getElementById("card-template")
+    .content.querySelector(".card")
+    .cloneNode(true);
 
-export const applyLikeUi = (cardData, likeBtn, countEl, ownerId) => {
-  const likedByMe = cardData.likes.some((user) => user._id === ownerId);
-  likeBtn.classList.toggle("card__like-button_is-active", likedByMe);
-  countEl.textContent = cardData.likes.length;
+export const refreshLikeCounter = (cardData, heartButton, counterElement, sessionUserId) => {
+  const userLikedCard = cardData.likes.some((user) => user._id === sessionUserId);
+  heartButton.classList.toggle("card__like-button_is-active", userLikedCard);
+  counterElement.textContent = cardData.likes.length;
 };
 
-export const removeCardNode = (cardNode) => {
-  cardNode.remove();
+export const detachCardItem = (cardElement) => {
+  cardElement.remove();
 };
 
-export const makeCardNode = (
+export const assembleCardItem = (
   cardData,
-  ownerId,
-  { onPreview, onLike, onDelete, onInfo }
+  sessionUserId,
+  { onImageClick, onHeartClick, onTrashClick, onStatsClick }
 ) => {
-  const cardNode = takeCardTemplate();
-  const likeBtn = cardNode.querySelector(".card__like-button");
-  const countEl = cardNode.querySelector(".card__like-count");
-  const deleteBtn = cardNode.querySelector(".card__control-button_type_delete");
-  const infoBtn = cardNode.querySelector(".card__control-button_type_info");
-  const imageEl = cardNode.querySelector(".card__image");
+  const cardElement = cloneCardMarkup();
+  const heartButton = cardElement.querySelector(".card__like-button");
+  const counterElement = cardElement.querySelector(".card__like-count");
+  const trashButton = cardElement.querySelector(".card__control-button_type_delete");
+  const statsButton = cardElement.querySelector(".card__control-button_type_info");
+  const photoElement = cardElement.querySelector(".card__image");
 
-  imageEl.src = cardData.link;
-  imageEl.alt = cardData.name;
-  cardNode.querySelector(".card__title").textContent = cardData.name;
-  applyLikeUi(cardData, likeBtn, countEl, ownerId);
+  photoElement.src = cardData.link;
+  photoElement.alt = cardData.name;
+  cardElement.querySelector(".card__title").textContent = cardData.name;
+  refreshLikeCounter(cardData, heartButton, counterElement, sessionUserId);
 
-  const isOwner = cardData.owner._id === ownerId;
-  if (!isOwner) {
-    deleteBtn.remove();
+  const createdByMe = cardData.owner._id === sessionUserId;
+  if (!createdByMe) {
+    trashButton.remove();
   }
 
-  likeBtn.addEventListener("click", () => {
-    const isLiked = likeBtn.classList.contains("card__like-button_is-active");
-    onLike({
+  heartButton.addEventListener("click", () => {
+    const isAlreadyLiked = heartButton.classList.contains("card__like-button_is-active");
+    onHeartClick({
       cardId: cardData._id,
-      isLiked,
-      likeBtn,
-      countEl,
+      isAlreadyLiked,
+      heartButton,
+      counterElement,
     });
   });
 
-  if (isOwner) {
-    deleteBtn.addEventListener("click", () => {
-      onDelete({ cardId: cardData._id, cardNode });
+  if (createdByMe) {
+    trashButton.addEventListener("click", () => {
+      onTrashClick({ cardId: cardData._id, cardElement });
     });
   }
 
-  infoBtn.addEventListener("click", () => {
-    onInfo(cardData._id);
+  statsButton.addEventListener("click", () => {
+    onStatsClick(cardData._id);
   });
 
-  imageEl.addEventListener("click", () => {
-    onPreview(cardData);
+  photoElement.addEventListener("click", () => {
+    onImageClick(cardData);
   });
 
-  return cardNode;
+  return cardElement;
 };
