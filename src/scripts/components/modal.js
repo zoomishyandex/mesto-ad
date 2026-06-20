@@ -1,31 +1,31 @@
-const onEscapePress = (evt) => {
-  if (evt.key === "Escape") {
-    const openedPopup = document.querySelector(".popup_is-opened");
-    closePopup(openedPopup);
+const handleDocumentKeyup = (event) => {
+  if (event.key === "Escape") {
+    const activeLayer = document.querySelector(".popup_is-opened");
+    hideModalLayer(activeLayer);
   }
 };
 
-export const openPopup = (popupElement) => {
-  popupElement.classList.add("popup_is-opened");
-  document.addEventListener("keyup", onEscapePress);
+export const showModalLayer = (layerElement) => {
+  layerElement.classList.add("popup_is-opened");
+  document.addEventListener("keyup", handleDocumentKeyup);
 };
 
-export const closePopup = (popupElement) => {
-  if (!popupElement) {
+export const hideModalLayer = (layerElement) => {
+  if (!layerElement) {
     return;
   }
-  popupElement.classList.remove("popup_is-opened");
-  document.removeEventListener("keyup", onEscapePress);
+  layerElement.classList.remove("popup_is-opened");
+  document.removeEventListener("keyup", handleDocumentKeyup);
 };
 
-export const registerPopupListeners = (popupElement) => {
-  popupElement.querySelector(".popup__close").addEventListener("click", () => {
-    closePopup(popupElement);
+export const initModalDismissal = (layerElement) => {
+  layerElement.querySelector(".popup__close").addEventListener("click", () => {
+    hideModalLayer(layerElement);
   });
 
-  popupElement.addEventListener("mousedown", (evt) => {
-    if (evt.target.classList.contains("popup")) {
-      closePopup(popupElement);
+  layerElement.addEventListener("mousedown", (event) => {
+    if (event.target === layerElement) {
+      hideModalLayer(layerElement);
     }
   });
 };
