@@ -1,40 +1,40 @@
-import { renderPlaceCard, dropPlaceCard, syncLikeButton } from "./components/card.js";
-import { revealPopup, dismissPopup, bindPopupClosing } from "./components/modal.js";
+import { buildSpotCard, eraseSpotCard, paintLikeState } from "./components/card.js";
+import { openOverlay, closeOverlay, wireOverlayClose } from "./components/modal.js";
 import { enableValidation, clearValidation } from "./components/validation.js";
 import {
-  readProfile,
-  readAllPlaces,
-  patchProfileData,
-  patchProfilePhoto,
-  addPlace,
-  removePlace,
-  flipPlaceLike,
+  loadAccount,
+  loadSpots,
+  saveAccount,
+  saveAccountPhoto,
+  createSpot,
+  deleteSpot,
+  toggleSpotLike,
 } from "./components/api.js";
 
-const placeList = document.querySelector(".places__list");
+const spotsGrid = document.querySelector(".places__list");
 
-const editPopup = document.querySelector(".popup_type_edit");
-const editForm = editPopup.querySelector(".popup__form");
-const editNameField = editForm.querySelector(".popup__input_type_name");
-const editAboutField = editForm.querySelector(".popup__input_type_description");
+const accountOverlay = document.querySelector(".popup_type_edit");
+const accountForm = accountOverlay.querySelector(".popup__form");
+const accountNameInput = accountForm.querySelector(".popup__input_type_name");
+const accountAboutInput = accountForm.querySelector(".popup__input_type_description");
 
-const addPopup = document.querySelector(".popup_type_new-card");
-const addForm = addPopup.querySelector(".popup__form");
-const placeNameField = addForm.querySelector(".popup__input_type_card-name");
-const placeLinkField = addForm.querySelector(".popup__input_type_url");
+const spotOverlay = document.querySelector(".popup_type_new-card");
+const spotForm = spotOverlay.querySelector(".popup__form");
+const spotTitleInput = spotForm.querySelector(".popup__input_type_card-name");
+const spotUrlInput = spotForm.querySelector(".popup__input_type_url");
 
-const zoomPopup = document.querySelector(".popup_type_image");
-const zoomImage = zoomPopup.querySelector(".popup__image");
-const zoomCaption = zoomPopup.querySelector(".popup__caption");
+const photoOverlay = document.querySelector(".popup_type_image");
+const photoPreview = photoOverlay.querySelector(".popup__image");
+const photoCaption = photoOverlay.querySelector(".popup__caption");
 
-const editProfileBtn = document.querySelector(".profile__edit-button");
-const addPlaceBtn = document.querySelector(".profile__add-button");
+const accountEditTrigger = document.querySelector(".profile__edit-button");
+const spotAddTrigger = document.querySelector(".profile__add-button");
 
-const profileTitle = document.querySelector(".profile__title");
-const profileAbout = document.querySelector(".profile__description");
-const profileAvatar = document.querySelector(".profile__image");
+const accountNameDisplay = document.querySelector(".profile__title");
+const accountAboutDisplay = document.querySelector(".profile__description");
+const accountAvatarDisplay = document.querySelector(".profile__image");
 
-const formSettings = {
+const validationConfig = {
   formSelector: ".popup__form",
   inputSelector: ".popup__input",
   submitButtonSelector: ".popup__button",
@@ -43,209 +43,213 @@ const formSettings = {
   errorClass: "popup__error_visible",
 };
 
-const avatarPopup = document.querySelector(".popup_type_edit-avatar");
-const avatarForm = avatarPopup.querySelector(".popup__form");
-const avatarUrlField = avatarForm.querySelector(".popup__input_type_avatar");
+const avatarOverlay = document.querySelector(".popup_type_edit-avatar");
+const avatarForm = avatarOverlay.querySelector(".popup__form");
+const avatarUrlInput = avatarForm.querySelector(".popup__input_type_avatar");
 
-const factsPopup = document.querySelector(".popup_type_info");
-const factsList = factsPopup.querySelector(".popup__list_type_definitions");
-const likersList = factsPopup.querySelector(".popup__list_type_users");
-const factRowTemplate = document.querySelector("#popup-info-definition-template").content;
-const likerBadgeTemplate = document.querySelector("#popup-info-user-preview-template").content;
+const detailsOverlay = document.querySelector(".popup_type_info");
+const detailsRows = detailsOverlay.querySelector(".popup__list_type_definitions");
+const detailsLikers = detailsOverlay.querySelector(".popup__list_type_users");
+const detailsRowTemplate = document.querySelector("#popup-info-definition-template").content;
+const likerChipTemplate = document.querySelector("#popup-info-user-preview-template").content;
 
-const allPopups = document.querySelectorAll(".popup");
+const overlayElements = document.querySelectorAll(".popup");
 
-let viewerId = "";
+let activeUserId = "";
 
-const logApiFailure = (error) => {
+const onApiError = (error) => {
   console.log(error);
 };
 
-const toRussianDate = (rawDate) =>
-  rawDate.toLocaleDateString("ru-RU", {
+const formatSpotDate = (dateValue) =>
+  dateValue.toLocaleDateString("ru-RU", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-const swapButtonText = (button, busy, busyText) => {
-  if (!button.dataset.savedLabel) {
-    button.dataset.savedLabel = button.textContent;
+const storeButtonCaption = (buttonElement) => {
+  if (!buttonElement.dataset.storedCaption) {
+    buttonElement.dataset.storedCaption = buttonElement.textContent;
   }
-  button.textContent = busy ? busyText : button.dataset.savedLabel;
 };
 
-const fillProfileBar = (profile) => {
-  profileTitle.textContent = profile.name;
-  profileAbout.textContent = profile.about;
-  profileAvatar.style.backgroundImage = `url(${profile.avatar})`;
-  viewerId = profile._id;
+const setSubmitPending = (buttonElement, pending, pendingCaption) => {
+  storeButtonCaption(buttonElement);
+  buttonElement.textContent = pending ? pendingCaption : buttonElement.dataset.storedCaption;
 };
 
-const openZoom = (placeData) => {
-  zoomImage.src = placeData.link;
-  zoomImage.alt = placeData.name;
-  zoomCaption.textContent = placeData.name;
-  revealPopup(zoomPopup);
+const renderAccount = (accountData) => {
+  accountNameDisplay.textContent = accountData.name;
+  accountAboutDisplay.textContent = accountData.about;
+  accountAvatarDisplay.style.backgroundImage = `url(${accountData.avatar})`;
+  activeUserId = accountData._id;
 };
 
-const makeFactRow = (label, value) => {
-  const row = factRowTemplate.querySelector(".popup__list-item").cloneNode(true);
-  row.querySelector(".popup__info-term").textContent = label;
+const openPhotoOverlay = (spotData) => {
+  photoPreview.src = spotData.link;
+  photoPreview.alt = spotData.name;
+  photoCaption.textContent = spotData.name;
+  openOverlay(photoOverlay);
+};
+
+const createDetailsRow = (term, value) => {
+  const row = detailsRowTemplate.querySelector(".popup__list-item").cloneNode(true);
+  row.querySelector(".popup__info-term").textContent = term;
   row.querySelector(".popup__info-item").textContent = value;
   return row;
 };
 
-const makeLikerBadge = (name) => {
-  const badge = likerBadgeTemplate
+const createLikerChip = (userName) => {
+  const chip = likerChipTemplate
     .querySelector(".popup__list-item_type_badge")
     .cloneNode(true);
-  badge.textContent = name;
-  return badge;
+  chip.textContent = userName;
+  return chip;
 };
 
-const openFactsPopup = (placeId) => {
-  readAllPlaces()
-    .then((places) => {
-      const target = places.find((item) => item._id === placeId);
-      if (!target) {
+const openSpotDetails = (spotId) => {
+  loadSpots()
+    .then((spots) => {
+      const spot = spots.find((item) => item._id === spotId);
+      if (!spot) {
         return;
       }
 
-      factsList.replaceChildren(
-        makeFactRow("Описание:", target.name),
-        makeFactRow("Дата создания:", toRussianDate(new Date(target.createdAt))),
-        makeFactRow("Владелец:", target.owner.name),
-        makeFactRow("Количество лайков:", String(target.likes.length))
+      detailsRows.replaceChildren(
+        createDetailsRow("Описание:", spot.name),
+        createDetailsRow("Дата создания:", formatSpotDate(new Date(spot.createdAt))),
+        createDetailsRow("Владелец:", spot.owner.name),
+        createDetailsRow("Количество лайков:", String(spot.likes.length))
       );
 
-      if (target.likes.length === 0) {
-        likersList.replaceChildren(makeLikerBadge("Пока никто не лайкнул"));
+      if (spot.likes.length === 0) {
+        detailsLikers.replaceChildren(createLikerChip("Пока никто не лайкнул"));
       } else {
-        likersList.replaceChildren(
-          ...target.likes.map((user) => makeLikerBadge(user.name))
+        detailsLikers.replaceChildren(
+          ...spot.likes.map((liker) => createLikerChip(liker.name))
         );
       }
 
-      revealPopup(factsPopup);
+      openOverlay(detailsOverlay);
     })
-    .catch(logApiFailure);
+    .catch(onApiError);
 };
 
-const onHeartClick = ({ placeId, alreadyLiked, likeBtn, countNode }) => {
-  flipPlaceLike(placeId, alreadyLiked)
-    .then((updated) => {
-      syncLikeButton(updated, likeBtn, countNode, viewerId);
+const handleLikePress = ({ spotId, likedAlready, likeControl, likesCounter }) => {
+  toggleSpotLike(spotId, likedAlready)
+    .then((updatedSpot) => {
+      paintLikeState(updatedSpot, likeControl, likesCounter, activeUserId);
     })
-    .catch(logApiFailure);
+    .catch(onApiError);
 };
 
-const onRemoveClick = ({ placeId, placeNode }) => {
-  removePlace(placeId)
+const handleSpotDelete = ({ spotId, spotElement }) => {
+  deleteSpot(spotId)
     .then(() => {
-      dropPlaceCard(placeNode);
+      eraseSpotCard(spotElement);
     })
-    .catch(logApiFailure);
+    .catch(onApiError);
 };
 
-const appendPlace = (placeData, toTop = false) => {
-  const placeNode = renderPlaceCard(placeData, viewerId, {
-    onZoom: openZoom,
-    onHeart: onHeartClick,
-    onRemove: onRemoveClick,
-    onFacts: openFactsPopup,
+const pushSpotToGrid = (spotData, toBeginning = false) => {
+  const spotElement = buildSpotCard(spotData, activeUserId, {
+    onPhotoOpen: openPhotoOverlay,
+    onLikePress: handleLikePress,
+    onSpotDelete: handleSpotDelete,
+    onSpotInfo: openSpotDetails,
   });
 
-  if (toTop) {
-    placeList.prepend(placeNode);
+  if (toBeginning) {
+    spotsGrid.prepend(spotElement);
     return;
   }
 
-  placeList.append(placeNode);
+  spotsGrid.append(spotElement);
 };
 
-const withBusyButton = (button, busyText, promise) => {
-  swapButtonText(button, true, busyText);
-  return promise.catch(logApiFailure).finally(() => {
-    swapButtonText(button, false);
+const runSubmitWithPending = (buttonElement, pendingCaption, requestPromise) => {
+  setSubmitPending(buttonElement, true, pendingCaption);
+  return requestPromise.catch(onApiError).finally(() => {
+    setSubmitPending(buttonElement, false);
   });
 };
 
-editForm.addEventListener("submit", (event) => {
+accountForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+  const buttonElement = event.submitter;
+  runSubmitWithPending(
+    buttonElement,
     "Сохранение...",
-    patchProfileData({
-      name: editNameField.value,
-      about: editAboutField.value,
-    }).then((profile) => {
-      fillProfileBar(profile);
-      dismissPopup(editPopup);
+    saveAccount({
+      name: accountNameInput.value,
+      about: accountAboutInput.value,
+    }).then((accountData) => {
+      renderAccount(accountData);
+      closeOverlay(accountOverlay);
     })
   );
 });
 
 avatarForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+  const buttonElement = event.submitter;
+  runSubmitWithPending(
+    buttonElement,
     "Сохранение...",
-    patchProfilePhoto({ avatar: avatarUrlField.value }).then((profile) => {
-      fillProfileBar(profile);
-      dismissPopup(avatarPopup);
+    saveAccountPhoto({ avatar: avatarUrlInput.value }).then((accountData) => {
+      renderAccount(accountData);
+      closeOverlay(avatarOverlay);
     })
   );
 });
 
-addForm.addEventListener("submit", (event) => {
+spotForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const button = event.submitter;
-  withBusyButton(
-    button,
+  const buttonElement = event.submitter;
+  runSubmitWithPending(
+    buttonElement,
     "Создание...",
-    addPlace({
-      name: placeNameField.value,
-      link: placeLinkField.value,
-    }).then((placeData) => {
-      appendPlace(placeData, true);
-      dismissPopup(addPopup);
+    createSpot({
+      name: spotTitleInput.value,
+      link: spotUrlInput.value,
+    }).then((spotData) => {
+      pushSpotToGrid(spotData, true);
+      closeOverlay(spotOverlay);
     })
   );
 });
 
-editProfileBtn.addEventListener("click", () => {
-  editNameField.value = profileTitle.textContent;
-  editAboutField.value = profileAbout.textContent;
-  clearValidation(editForm, formSettings);
-  revealPopup(editPopup);
+accountEditTrigger.addEventListener("click", () => {
+  accountNameInput.value = accountNameDisplay.textContent;
+  accountAboutInput.value = accountAboutDisplay.textContent;
+  clearValidation(accountForm, validationConfig);
+  openOverlay(accountOverlay);
 });
 
-profileAvatar.addEventListener("click", () => {
+accountAvatarDisplay.addEventListener("click", () => {
   avatarForm.reset();
-  clearValidation(avatarForm, formSettings);
-  revealPopup(avatarPopup);
+  clearValidation(avatarForm, validationConfig);
+  openOverlay(avatarOverlay);
 });
 
-addPlaceBtn.addEventListener("click", () => {
-  addForm.reset();
-  clearValidation(addForm, formSettings);
-  revealPopup(addPopup);
+spotAddTrigger.addEventListener("click", () => {
+  spotForm.reset();
+  clearValidation(spotForm, validationConfig);
+  openOverlay(spotOverlay);
 });
 
-for (const popupNode of allPopups) {
-  bindPopupClosing(popupNode);
-}
+overlayElements.forEach((overlayElement) => {
+  wireOverlayClose(overlayElement);
+});
 
-enableValidation(formSettings);
+enableValidation(validationConfig);
 
-Promise.all([readAllPlaces(), readProfile()])
-  .then(([places, profile]) => {
-    fillProfileBar(profile);
-    for (const placeData of places) {
-      appendPlace(placeData);
-    }
+Promise.all([loadSpots(), loadAccount()])
+  .then(([spots, accountData]) => {
+    renderAccount(accountData);
+    spots.forEach((spotData) => {
+      pushSpotToGrid(spotData);
+    });
   })
-  .catch(logApiFailure);
+  .catch(onApiError);
